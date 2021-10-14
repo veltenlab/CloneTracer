@@ -446,7 +446,7 @@ print(genes_no_polyA)
 
 # create directory where bed files will be stored
 
-if(file.exists(opt$out_directory) == F){
+if(!file.exists(opt$out_directory)){
   
   dir.create(opt$out_directory)
   
