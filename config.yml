@@ -1,0 +1,57 @@
+# Sample names and specifications
+
+# names of patient samples
+# once mutations have been selected the sample can be added to the primers entry for design of gene-specific primers
+patient_names:
+  mutations: [P19003_1, P80, P145, P186, P221_tcells, P221_mscs, P270, P361, P362, P379,P357, P395, P107, P127, P130, P183, P327, P364, P757_ALL]
+  primers: [P19003_1, P80, P186, P270, P221_tcells, P361]
+
+# at some point NEXTseq fastqs were not sorted...
+patients_nextseq:
+  [P19003_1, P80, P145, P186, P221_tcells, P221_mscs, P270, P361, P362, P379, P357, P395]
+
+# Novaseq fastqs are split in 2 files
+patients_novaseq:
+  [P107, P127, P130, P183, P327, P364, P757_ALL]
+
+# Names of different disease conditions
+sample_population:
+  [cd3_cells, tumor_cells]
+
+# files to annotate variants with annovar
+# You will have to install ANNOVAR from https://annovar.openbioinformatics.org and specify the path to the Perl script
+# (table_annovar.pl) as annovar_annotate and the path to the database (humandb) as annovar_database
+annovar_files:
+  annovar_annotate: "annovar/table_annovar.pl"
+  annovar_database: "annovar/humandb/"
+
+# Reference genome
+ref_genome: "hg38"
+
+# reference files
+# These files have to be downloaded from various locations. Please have a look at the README file for further information
+ref_files:
+  genome: "hg38.fa"
+  exome_baits: "../../../sbeneyto/external_data/exome_agilent_v6_r2/bait.interval_list"
+  exome_targets: "../../../sbeneyto/external_data/exome_agilent_v6_r2/targets.interval_list"
+  dbSNP: "dbSNP_exome.vcf.gz"
+  gtf: "../../../sbeneyto/alignment_references/GRCh38/Homo_sapiens.GRCh38.100.chr.gtf"
+  bam_polyA: "data/reference_data/ref_patients_bam.txt"
+
+# Files required to run java tools
+jar_files:
+  gatk: "envs/gatk-4.1.9.0/gatk-package-4.1.9.0-local.jar"
+
+# Memory speicifications for GATK java tools
+java_specifications:
+  initial_ram: 20
+  max_ram: 60
+  max_ram_mutect: 80
+
+#bwa specifications
+bwa_resources:
+  threads: 8
+
+# read length for the nuclear library (used for primer design)
+read_length:
+  default: 120
