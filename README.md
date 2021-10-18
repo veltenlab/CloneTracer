@@ -4,6 +4,7 @@
 
 ## Dependencies:
 * ANNOVAR: https://annovar.openbioinformatics.org
+* samtools: https://sourceforge.net/projects/samtools/files/samtools/. Samtools also has to be added to your PATH variable and thus executable from within R.
 
 ## Required Resources:
 * (UCSC) Human reference genome: hg38.fa [https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.fa.gz](https://hgdownload.cse.ucsc.edu/goldenpath/hg38/bigZips/hg38.fa.gz)

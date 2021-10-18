@@ -23,23 +23,23 @@ suppressPackageStartupMessages(library(rtracklayer))
 suppressPackageStartupMessages(library(Seurat))
 
 option_list <- list(
-    make_option(c("-i", "--input"), type = "character", default = NULL,
-        help = "vcf file annotated with annovar as outputed by the Mutect2 exome pipeline",
-        metavar = "character"),
-    make_option(c("-g", "--gtf_file"), type = "character", default = NULL,
-        help = "gtf file from which the exon sequences will be extracted", 
-        metavar = "character"),
-    make_option(c("-o", "--outcsv"), type = "character", default = NULL,
-        help = "relative path where the variant table will be saved (must be a .csv file)", 
-        metavar = "character"),
-    make_option(c("-b", "--outbed"), type = "character", default = NULL,
-        help = "BED file with the genomic coordinates of the selected variants", 
-        metavar = "character"),
-    make_option(c("-s", "--seurat"), type = "character", default = NULL,
-                help = "Path to a Seurat (RDS) file to check for gene expression", 
-                metavar = "character")
+    make_option(c("-i", "--input"), type="character", default=NULL,
+        help="vcf file annotated with annovar as outputed by the Mutect2 exome pipeline",
+        metavar="character"),
+    make_option(c("-g", "--gtf_file"), type="character", default=NULL,
+        help="gtf file from which the exon sequences will be extracted", 
+        metavar="character"),
+    make_option(c("-o", "--outcsv"), type="character", default=NULL,
+        help="relative path where the variant table will be saved (must be a .csv file)", 
+        metavar="character"),
+    make_option(c("-b", "--outbed"), type="character", default=NULL,
+        help="BED file with the genomic coordinates of the selected variants", 
+        metavar="character"),
+    make_option(c("-s", "--seurat"), type="character", default=NULL,
+                help="Path to a Seurat (RDS) file to check for gene expression", 
+                metavar="character")
 )
-opt_parser <- OptionParser(option_list = option_list)
+opt_parser <- OptionParser(option_list=option_list)
 opt <- parse_args(opt_parser)
 
 #' check_required_args
@@ -59,37 +59,37 @@ res <- lapply(required_args, check_required_args, opt=opt, opt_parser=opt_parser
 ## SCRIPT -------------------------------------------------------------------
 ## read file VCF to dataframe. Extract allele frequency and approximated read depth
 vcf <- vcfR2tidy(read.vcfR(opt$input),
-    format_fields = c("AF", "DP", "AD"))
+    format_fields=c("AF", "DP", "AD"))
 variants <- vcf$fix  
           
 ## get allele frequencies in tcells and tumor cells for the sites of interest          
 af <- vcf$gt %>% filter(ChromKey %in% variants$ChromKey & POS %in% variants$POS) %>% 
-    pivot_wider(id_cols = c(ChromKey, POS), names_from = Indiv,
-        values_from = gt_AF) %>% 
-    mutate(prob_af_cd3_cells = as.double(cd3_cells),
-        prob_af_tumor_cells = as.double(tumor_cells)) %>% 
+    pivot_wider(id_cols=c(ChromKey, POS), names_from=Indiv,
+        values_from=gt_AF) %>% 
+    mutate(prob_af_cd3_cells=as.double(cd3_cells),
+        prob_af_tumor_cells=as.double(tumor_cells)) %>% 
     dplyr::select(-tumor_cells, -cd3_cells)
 
 ## get approximate read depth in the positions
 coverage <- vcf$gt %>% filter(ChromKey %in% variants$ChromKey & POS %in% variants$POS) %>% 
-    pivot_wider(id_cols = c(ChromKey, POS), names_from = Indiv,
-        values_from = gt_DP) %>% 
-    mutate(coverage = as.double(cd3_cells) + as.double(tumor_cells)) %>% 
-    dplyr::rename(depth_tcells = cd3_cells, depth_tumor = tumor_cells) 
+    pivot_wider(id_cols=c(ChromKey, POS), names_from=Indiv,
+        values_from=gt_DP) %>% 
+    mutate(coverage=as.double(cd3_cells) + as.double(tumor_cells)) %>% 
+    dplyr::rename(depth_tcells=cd3_cells, depth_tumor=tumor_cells) 
 
 ## get reference and mutant counts
 read_af <- vcf$gt %>% 
-    separate(gt_AD, into = c("ref_counts", "alt_counts"), sep = ",") %>% 
-    mutate(af = as.double(alt_counts)/(as.double(alt_counts)+as.double(ref_counts))) %>% 
+    separate(gt_AD, into=c("ref_counts", "alt_counts"), sep=",") %>% 
+    mutate(af=as.double(alt_counts)/(as.double(alt_counts)+as.double(ref_counts))) %>% 
     filter(ChromKey %in% variants$ChromKey & POS %in% variants$POS) %>% 
-    pivot_wider(id_cols = c(ChromKey, POS), names_from = Indiv,
-        values_from = af) %>% 
-    dplyr::rename(af_tcells = cd3_cells, af_tumor = tumor_cells)
+    pivot_wider(id_cols=c(ChromKey, POS), names_from=Indiv,
+        values_from=af) %>% 
+    dplyr::rename(af_tcells=cd3_cells, af_tumor=tumor_cells)
 
 ## AML GENES ---------------------------------------------------------------------------------------
 ## get variants in AML genes present in the Illumina myeloid panel
-aml_genes <- read_delim("../data/myeloid_panel_genes.txt", delim = "\n",
-    col_names = FALSE) %>% pull(X1)
+aml_genes <- read_delim("../data/myeloid_panel_genes.txt", delim="\n",
+    col_names=FALSE) %>% pull(X1)
 
 ## get aml variants if present
 if(any(aml_genes %in% variants$Gene.refGene)){
@@ -101,9 +101,9 @@ aml_variants <- variants %>%  filter(Func.refGene %in% c("exonic", "splicing"),
     left_join(af) %>%
     left_join(coverage) %>% 
     left_join(read_af) %>% 
-    mutate(af_diff = (af_tumor - af_tcells)/af_tcells,
-        cancer_gene = ifelse(cosmic == ".", "no", "yes"),
-        cosmic_id = gsub(".+(COSV.+)\\\\x3bO.+", "\\1", cosmic)) %>% 
+    mutate(af_diff=(af_tumor - af_tcells)/af_tcells,
+        cancer_gene=ifelse(cosmic == ".", "no", "yes"),
+        cosmic_id=gsub(".+(COSV.+)\\\\x3bO.+", "\\1", cosmic)) %>% 
     dplyr::select(-TLOD, -cosmic) %>% 
     filter(af_diff > 0.1)
 }
@@ -119,20 +119,20 @@ if(!is.null(opt$seurat)){
     ## load Seurat object with merged count tables
     count_matrix <- readRDS(opt$seurat)
     ## compute total number of cells
-    total_cells <- ncol(GetAssayData(count_matrix, slot = "counts"))
+    total_cells <- ncol(GetAssayData(count_matrix, slot="counts"))
     ## get gene names for which variants are found
     gene_names <- syn_variants %>% pull(Gene.refGene) %>% unique() %>% as.character()
     ## get only gene names which are present in the Seurat object
-    gene_names <- gene_names[which(gene_names %in% rownames(GetAssayData(count_matrix, slot = "counts")))]
+    gene_names <- gene_names[which(gene_names %in% rownames(GetAssayData(count_matrix, slot="counts")))]
     ## sum counts for the genes of interest and divide by the total number of cells
-    high_genes <- GetAssayData(count_matrix, slot = "counts")[gene_names,] %>% 
+    high_genes <- GetAssayData(count_matrix, slot="counts")[gene_names,] %>% 
         as.data.frame() %>% t() %>% as.data.frame() %>%  
-        summarise_if(is.numeric, sum, na.rm = TRUE) %>% 
-        pivot_longer(cols = everything(), 
-            names_to = "gene", values_to = "raw_counts") %>% 
-        mutate(counts_cell = round(raw_counts/total_cells, digits = 2)) %>% 
+        summarise_if(is.numeric, sum, na.rm=TRUE) %>% 
+        pivot_longer(cols=everything(), 
+            names_to="gene", values_to="raw_counts") %>% 
+        mutate(counts_cell=round(raw_counts/total_cells, digits=2)) %>% 
         dplyr::select(-raw_counts) %>% 
-        dplyr::rename(symbol = gene) %>% 
+        dplyr::rename(symbol=gene) %>% 
         filter(counts_cell > 0.5) %>% 
         pull(symbol)
     ## filter synonymous variants that happen in low expressed genes
@@ -142,9 +142,9 @@ if(!is.null(opt$seurat)){
 ## filter variants with low allele frequency in the tumor
 final_syn_variants <- syn_variants %>% left_join(af) %>% left_join(coverage) %>% 
     left_join(read_af) %>% 
-    mutate(af_diff = (af_tumor - af_tcells)/af_tcells) %>% 
-    mutate(cancer_gene = ifelse(cosmic == ".", "no", "yes"),
-        cosmic_id = gsub(".+(COSV.+)\\\\x3bO.+", "\\1", cosmic)) %>% 
+    mutate(af_diff=(af_tumor - af_tcells)/af_tcells) %>% 
+    mutate(cancer_gene=ifelse(cosmic == ".", "no", "yes"),
+        cosmic_id=gsub(".+(COSV.+)\\\\x3bO.+", "\\1", cosmic)) %>% 
     dplyr::select(-TLOD, -cosmic) %>% 
     filter(af_diff > 2 & af_tumor > 0.1 & depth_tcells > 10 | FILTER == "PASS" & depth_tcells > 10)
 
@@ -159,10 +159,10 @@ final_variants <- variants %>%
     left_join(af) %>% 
     left_join(coverage) %>% 
     left_join(read_af) %>% 
-    mutate(af_diff = (af_tumor - af_tcells)/af_tcells) %>% 
+    mutate(af_diff=(af_tumor - af_tcells)/af_tcells) %>% 
     filter((af_diff > 2 & af_tumor > 0.1 & depth_tcells > 10) | (FILTER == "PASS" & depth_tcells > 10)) %>% 
-    mutate(cancer_gene = ifelse(cosmic == ".", "no", "yes"),
-        cosmic_id = gsub(".+(COSV.+)\\\\x3bO.+", "\\1", cosmic)) %>% 
+    mutate(cancer_gene=ifelse(cosmic == ".", "no", "yes"),
+        cosmic_id=gsub(".+(COSV.+)\\\\x3bO.+", "\\1", cosmic)) %>% 
     dplyr::select(-TLOD, -cosmic) %>% 
     rbind(aml_variants) %>% 
     rbind(final_syn_variants) %>% 
@@ -178,7 +178,7 @@ colnames(final_variants) <- c("symbol", "CHROM", "POS", "REF", "ALT",
     "prob_af_tcells", "prob_af_tumor", "cancer_gene", "cosmic_id","FILTER", "coverage", "af_diff")
 
 ## write final table to csv file
-write_csv(final_variants, file = opt$outcsv)
+write_csv(final_variants, file=opt$outcsv)
 
 ## read gtf file
 transcripts <- gffReadGR(opt$gtf)
@@ -193,4 +193,4 @@ seqlevelsStyle(filtered_transcripts) <- "UCSC"
 mcols(filtered_transcripts) <- NULL
 
 ## export gene coordinates as BED file
-export(filtered_transcripts, con = opt$outbed, format = "bed")
+export(filtered_transcripts, con=opt$outbed, format="bed")
