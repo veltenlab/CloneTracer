@@ -74,7 +74,7 @@ rule sort_fastqs:
     log:
         "raw_data/{patients_nextseq}/{population}/logs/sort_fasqs.log"
     conda:
-        "../snakemake/envs/exome.yml"
+        "envs/exome.yml"
     shell:
         "gunzip -c {input.fastq1} > {params.gz_read1} ; "
         "gunzip -c {input.fastq2} > {params.gz_read3} ; "
@@ -99,7 +99,7 @@ rule align_reads:
     log:
         "data/{patient}/{population}/logs/alignment.log"
     conda:
-        "../snakemake/envs/exome.yml"
+        "envs/exome.yml"
     shell:
         "bwa mem -t {params.threads} {params.reference_genome} {input.fastq1} {input.fastq2} > {output} "
         "2> {log}"
@@ -114,7 +114,7 @@ rule sam_to_bam:
     log:
         "data/{patient}/{population}/logs/sam_to_bam.log"
     conda:
-        "../snakemake/envs/exome.yml"
+        "envs/exome.yml"
     shell:
         "samtools view -S -b {input} > {output}"
 
@@ -128,7 +128,7 @@ rule sort_bam:
     log:
         "data/{patient}/{population}/logs/sort_bam.log"
     conda:
-        "../snakemake/envs/exome.yml"
+        "envs/exome.yml"
     shell:
         "picard SortSam "
         "INPUT={input} "
@@ -147,7 +147,7 @@ rule index_bam:
     log:
         "data/{patient}/{population}/logs/index_bam.log"
     conda:
-        "../snakemake/envs/exome.yml"
+        "envs/exome.yml"
     shell:
         "samtools index -b "
         "{input} "
@@ -165,7 +165,7 @@ rule tag_bam:
     log:
         "data/{patient}/{population}/logs/tag_bam.log"
     conda:
-        "../snakemake/envs/exome.yml"
+        "envs/exome.yml"
     shell:
         "picard AddOrReplaceReadGroups "
         "INPUT={input.bam} "
@@ -193,7 +193,7 @@ rule mark_duplicates:
     log:
         "data/{patient}/{population}/logs/tag_duplicates.log"
     conda:
-        "../snakemake/envs/exome.yml"
+        "envs/exome.yml"
     shell:
         "picard MarkDuplicates "
         "I={input.bam} "
@@ -212,7 +212,7 @@ rule sort_marked_bam:
     log:
         "data/{patient}/{population}/logs/sort_marked_bam.log"
     conda:
-        "../snakemake/envs/exome.yml"
+        "envs/exome.yml"
     shell:
         "picard SortSam "
         "I={input} "
@@ -236,7 +236,7 @@ rule recalibration_table:
     log:
         "data/{patient}/{population}/logs/recalibration_table.log"
     conda:
-        "../snakemake/envs/exome.yml"
+        "envs/exome.yml"
     shell:
         "java -Djava.io.tmpdir=./tmp -Xms{params.initial_ram}G -Xmx{params.max_ram}G -jar {params.gatk_jar} BaseRecalibrator "
         "-I {input.bam} "
@@ -261,7 +261,7 @@ rule recalibrate_scores:
     log:
         "data/{patient}/{population}/logs/recalibrate_scores.log"
     conda:
-        "../snakemake/envs/exome.yml"
+        "envs/exome.yml"
     shell:
         "java -Djava.io.tmpdir=./tmp -Xms{params.initial_ram}G -Xmx{params.max_ram}G -jar {params.gatk_jar} ApplyBQSR "
         "-I {input.bam} "
@@ -284,10 +284,8 @@ rule summary_recalibration:
         initial_ram = config["java_specifications"]["initial_ram"],
         max_ram = config["java_specifications"]["max_ram"]
     conda:
-        "../snakemake/envs/exome.yml"
+        "envs/exome.yml"
     shell:
-        "module use /software/as/el7.2/EasyBuild/CRG/modules/all ; "
-        "module load R ; "
         "java -Djava.io.tmpdir=./tmp -Xms{params.initial_ram}G -Xmx{params.max_ram}G -jar {params.gatk_jar} AnalyzeCovariates "
         "-bqsr {input.table} "
         "-plots {output.plots} "
@@ -307,7 +305,7 @@ rule qc_target_coverage:
     log:
         "data/{patient}/{population}/logs/qc_target_coverage.log"
     conda:
-        "../snakemake/envs/exome.yml"
+        "envs/exome.yml"
     shell:
         "picard CollectHsMetrics "
         "I={input.bam} "
@@ -327,9 +325,9 @@ rule plot_target_coverage:
     log:
         "results/{patient}/logs/qc_coverage_plot.log"
     conda:
-        "../snakemake/envs/exome.yml"
+        "envs/exome.yml"
     shell:
-        "Rscript scripts/qc_exome.R "
+        "Rscript ../R/qc_exome.R "
         "-r {input.table_cd3} "
         "-t {input.table_tumor} "
         "-o {output} "
@@ -354,7 +352,7 @@ rule variants_mutect2:
     log:
         "data/{patient}/variants/logs/variants_mutect2.log"
     conda:
-        "../snakemake/envs/exome.yml"
+        "envs/exome.yml"
     shell:
         "java -Djava.io.tmpdir=./tmp -Xms{params.initial_ram}G -Xmx{params.max_ram}G -jar {params.gatk_jar} Mutect2 "
         "-R {params.reference} "
@@ -381,7 +379,7 @@ rule filter_variants:
     log:
         "data/{patient}/variants/logs/filter_variants.log"
     conda:
-        "../snakemake/envs/exome.yml"
+        "envs/exome.yml"
     shell:
         "java -Djava.io.tmpdir=./tmp -Xms{params.initial_ram}G -Xmx{params.max_ram}G -jar {params.gatk_jar} FilterMutectCalls "
         "-R {params.reference} "
@@ -403,7 +401,7 @@ rule annotate_variants:
     log:
         "data/{patient}/variants/logs/annotate_variants.log"
     conda:
-        "../snakemake/envs/exome.yml"
+        "envs/exome.yml"
     shell:
         "perl {params.script} "
         "{input.vcf} "
@@ -429,7 +427,7 @@ rule variant_table:
     log:
         "results/{patient}/logs/final_variant_table.log"
     conda:
-        "../snakemake/envs/exome.yml"
+        "envs/exome.yml"
     shell:
         "Rscript scripts/filter_variants.R "
         "-i {input} "
@@ -451,9 +449,9 @@ rule subset_bams:
     log:
         "results/{patient}/logs/subset_merge_bams.log"
     conda:
-        "../snakemake/envs/exome.yml"
+        "envs/exome.yml"
     shell:
-        "Rscript scripts/subset_merge_bams.R "
+        "Rscript ../R/subset_merge_bams.R "
         "-b {input.bed} "
         "-d {params.directory} "
         "-p {wildcards.patient} "
@@ -473,9 +471,9 @@ rule compute_distance:
     log:
         "results/{patient}/logs/distance_polyA.log"
     conda:
-        "../snakemake/envs/exome.yml"
+        "envs/exome.yml"
     shell:
-        "Rscript scripts/distance_polyA.R "
+        "Rscript ../R/distance_polyA.R "
         "-i {input.csv} "
         "-b {input.bam} "
         "-g {params.gtf} "
@@ -501,9 +499,9 @@ rule design_primers:
     log:
         "data/{patient_primers}/logs/design_primers.log"
     conda:
-        "../snakemake/envs/exome.yml"
+        "envs/exome.yml"
     shell:
-        "Rscript scripts/design_mutation_primers.R "
+        "Rscript ../R/design_mutation_primers.R "
         "-i {input.mutations} "
         "-l {input.selected_variants} "
         "-o results/{wildcards.patient_primers}/primers/ "
