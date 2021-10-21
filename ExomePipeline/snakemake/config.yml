@@ -32,8 +32,8 @@ ref_genome: "hg38"
 # These files have to be downloaded from various locations. Please have a look at the README file for further information
 ref_files:
   genome: "hg38.fa"
-  exome_baits: "../../../sbeneyto/external_data/exome_agilent_v6_r2/bait.interval_list"
-  exome_targets: "../../../sbeneyto/external_data/exome_agilent_v6_r2/targets.interval_list"
+  exome_baits: "external_data/exome_agilent_v6_r2/bait.interval_list"
+  exome_targets: "external_data/exome_agilent_v6_r2/targets.interval_list"
   dbSNP: "dbSNP_exome.vcf.gz"
   gtf: "../../../sbeneyto/alignment_references/GRCh38/Homo_sapiens.GRCh38.100.chr.gtf"
   bam_polyA: "data/reference_data/ref_patients_bam.txt"
