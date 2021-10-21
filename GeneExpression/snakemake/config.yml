@@ -1,0 +1,60 @@
+## PATIENTS AND SAMPLE-SPECIFIC PARAMETERS ==========================================================
+
+## WTA parameters ------------------------------------------------
+
+# patient ids with libraries for WTA
+patients_wta:
+  [P266_spiked, P266_TAPseq, P80, jurkatK562]
+
+# patients citeseq
+patients_cite:
+  [P186_high, P186_low, P324, P270, P221, P19003-11, P127, P361, P362, P379, P327, P127_BGI, P327_BGI, P327ds1, P107, P130, P183, P210230F, P364, P395, P357]
+
+modalities:
+  [wta, ab_citeseq]
+
+# in the sample names for cellranger no "_" can be included...
+samples_cellranger:
+  P266_spiked: P266Spiked
+  P266_TAPseq: P266TAPseq
+  P80: P80
+
+# find a better way to do this rule...
+samples_mv_cellranger:
+  P266_spiked: P266_spiked
+  P266_TAPseq: P266_TAPseq
+
+
+# estimated number of cells per sample, for which dge data should be extracted.
+cell_numbers:
+  P266_TAPseq: 4000
+  P266_spiked: 4000
+  jurkatK562: 4000
+  P80: 7000
+  P186_high: 8000
+  P186_low: 8000
+  P324: 5000
+  P221: 8000
+  P270: 8000
+  P19003-11: 8000
+  P127: 8000
+  P361: 8000
+  P362: 8000
+  P379: 8000
+  P327: 8000
+  P327_BGI: 8000
+  P127_BGI: 8000
+  P327ds1: 8000
+  P107: 8000
+  P130: 8000
+  P183: 8000
+  P210230F: 8000
+  P364: 8000
+  P395: 8000
+  P357: 8000
+
+
+# cellranger files, to be added according to the cellranger installation
+cellranger:
+  transcriptome: "cellranger-5.0.1/refdata-gex-GRCh38-2020-A"
+  out_barcodes_dir: "data/"

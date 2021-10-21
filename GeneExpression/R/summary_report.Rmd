@@ -1,0 +1,357 @@
+---
+title: "CITEseq summary report"
+author: "Sergi Beneyto-Calabuig"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+params:
+  rmd: "summary_report.Rmd"
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: false
+    highlight: pygments 
+editor_options: 
+  chunk_output_type: console
+---
+
+<br>
+
+
+```{r, include=FALSE}
+## set global chunk settings
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+
+
+
+## load the required packages
+library(tidyverse)
+library(ggplot2)
+library(patchwork)
+library(GenomicRanges)
+library(vcfR)
+library(RColorBrewer)
+library(viridis)
+library(Seurat)
+library(DT)
+library(viridis)
+library(SingleCellExperiment)
+library(scmap)
+library(SummarizedExperiment)
+snakemake@source("themes.R")
+snakemake@source("source_functions.R")
+
+## get the directory where Snakefile is stored
+directory <- gsub("/[^/]*$", "", snakemake@scriptdir)
+## directory where plots will be exported
+plots_dir <- file.path(directory, "results/summary_reports", snakemake@wildcards$patient, "plots")
+## create directory to store plots
+dir.create(plots_dir)
+## the name of the sample from which the report is made
+sample_report <- snakemake@wildcards$patient_cite
+## create seurat object
+count_data <- Read10X(data.dir = snakemake@params$dir_10x)
+seurat_object <- CreateSeuratObject(counts = count_data$'Gene Expression', project = sample_report)
+adt_assay <- CreateAssayObject(counts = count_data$'Antibody Capture')
+seurat_object[["ADT"]] <- adt_assay
+```
+
+# `r snakemake@wildcards$patient`
+
+This is the summary report for the CITEseq libraries of **`r snakemake@wildcards$patient`**.
+
+
+# Quality control
+
+## percent.mt v.s. nFeatures
+
+Shown in the plots below is the percentage of mitochondrial reads against the number of deteced features. Filters to assign a cell as good quality are:
+
+* less than 40% of mitochondrial reads
+* more than 1000 genes detected
+
+<br>
+
+```{r, fig.width=10}
+## compute percentage of mitochondrial reads
+seurat_object[["percent.mt"]] <- PercentageFeatureSet(seurat_object, pattern = "^MT-")
+## make a table with nFeatures and percent.mt and determine whether cells passed the QC thresholds
+table_qc <- seurat_object@meta.data %>% 
+    mutate(quality = factor(ifelse(percent.mt < 20 & nFeature_RNA > 1500, "good", 
+        ifelse(percent.mt < 50 & nFeature_RNA > 1000, "poor","failed")),
+        levels = c("failed", "poor", "good")))
+## get median genes/cell for all cells and non-failes cells
+median_genes <- median(table_qc$nFeature_RNA)
+median_genes_filt <- median(table_qc %>% filter(quality != "failed") %>% pull(nFeature_RNA))
+## make scatter plot
+scatter_feat_mt <- ggplot(data = table_qc, 
+    aes(x = nFeature_RNA, y = percent.mt, color = quality)) +
+    geom_point(size = 0.7) +
+    scale_color_manual(values = c(dropout_gray, orange_set1, google_green)) +
+    guides(color = guide_legend(override.aes = list(size = 3),
+        title.position = "top",
+        title.hjust = 0.5)) +
+    theme_scatter + 
+    theme(plot.title = element_text(size = 22, vjust = 0.5, hjust = 0.5),
+        legend.position = "bottom") + 
+    ggtitle(sample_report) 
+scatter_feat_mt + readRDS(paste0(directory,"/results/summary_reports/P186_high/plots/scatter_reference.rds"))
+```
+
+***
+
+# Proportion of high-quality cells
+
+The following plots depicts the proportion of cells which passed the QC filters
+
+<br>
+
+```{r}
+table_genes <- data.frame(type = c("ncells cellranger", "median genes/cell", "median genes/filtered cells"),
+    sample = c(floor(nrow(table_qc)), floor(median_genes), floor(median_genes_filt)),
+    P186 = c(9359, 2260, 2707))
+colnames(table_genes) <- c("type", sample_report, "P186")
+knitr::kable(table_genes)
+```
+
+<br>
+
+```{r}
+## make a data frame with aggregated values
+sum_qc_table <- table_qc %>% group_by(quality) %>% 
+    dplyr::summarise(ncells = n()) %>% 
+    mutate(prop = ncells/sum(ncells),
+        sample = sample_report,
+        quality = factor(quality, levels = c("failed", "poor","good"))) %>% 
+    bind_rows(readRDS(paste0(directory,"/results/summary_reports/P186_high/plots/qc_aggregated_ref.rds"))) %>% 
+    mutate(sample = factor(sample, levels = c(sample_report, "P186")))
+
+## barplot showing proportion of good and bad quality cells
+barplot_qc <- ggplot(sum_qc_table, 
+    aes(x = sample, y = prop*100, fill = quality)) +
+    geom_bar(stat = "identity") +
+    scale_fill_manual(values = c(dropout_gray, orange_set1, google_green)) +
+    geom_text(data = sum_qc_table, 
+        aes(label = ncells), size = 5, color = "white",
+        position = position_stack(vjust = 0.5)) +
+    ylab("Percentage of cells (%)") +
+    theme_barplot
+barplot_qc
+# save scatter and barplot 
+ggsave((scatter_feat_mt + theme_scatter_pdf) + (barplot_qc + theme_barplot_pdf) + plot_layout(widths = c(2,1)),
+    file = file.path(plots_dir, "qc_plots.png"), 
+    height = 7, width = 15)
+```
+
+***
+
+# Projection to reference map
+
+Cells are projected to the hematopoiesis reference map from [Triana, Vonficht et al 2021](https://www.biorxiv.org/content/10.1101/2021.03.18.435922v1)
+
+
+```{r}
+## subset seurat for high-quality cells
+seurat_object <- seurat_object[, rownames(table_qc %>% filter(quality != "failed"))]
+## project to reference map
+umap_cell_table <- project_reference(seurat_object, neighbours = 5)
+
+## make UMAP of the projection with celltypes
+## plot UMAP for the sample of interest
+umap_cell_plot <- ggplot(umap_cell_table,
+    aes(x = umapx, y = umapy, colour = celltype)) +
+    geom_point(size = 0.85)+
+    theme_classic() +
+    theme(axis.title = element_text(size = 12),
+        axis.text = element_text(size = 12, color = "black"),
+        legend.title = element_blank(),
+        plot.title = element_text(size = 22, hjust = 0.5),
+        legend.text = element_text(size = 12),
+        legend.position = "bottom") +
+    guides(colour = guide_legend(override.aes = list(size = 4.5)))  
+
+# save clusters plot
+ggsave(umap_cell_plot, 
+    filename = file.path(plots_dir, "umap_celltypes.png"), 
+    height = 9, width = 16)
+umap_cell_plot + NoLegend()
+```
+
+***
+
+# Quantification of populations
+
+## Lineages
+
+In the next plot, we show the proportion of cells belonging to T cell, NK cell, B cell, Myeloid, Erythroid and HSPCs cell types.
+
+<br>
+
+```{r}
+## make a dataframe with number of cells per lineage
+sum_lineages <- umap_cell_table %>% 
+    mutate(lineage = case_when(celltype %in% hspc ~ "HSPC",
+        celltype %in% tcells ~ "T cells",
+        celltype %in% nkcells ~ "NK cells",
+        celltype %in% bcells ~ "B cells",
+        celltype %in% myeloid ~ "Myeloid",
+        celltype %in% erythroid ~ "Erythroid")) %>% 
+    group_by(lineage) %>% 
+    dplyr::summarise(ncells = n()) %>% 
+    mutate(prop = ncells/sum(ncells),
+        sample = sample_report,
+        lineage = factor(lineage, 
+        levels = c("Myeloid", "T cells", "HSPC", "NK cells", "Erythroid", "B cells")))
+
+## barplot 
+barplot_lineages <- ggplot(sum_lineages, 
+    aes(x = lineage, y = prop*100, fill = lineage)) +
+    geom_bar(stat = "identity") +
+    scale_fill_viridis_d(option = "inferno", end = 0.8, direction = -1 ) +
+    geom_text(data = sum_lineages %>% filter(prop > 0.05), 
+        aes(label = ncells), size = 5, color = "white",
+        position = position_stack(vjust = 0.5)) +
+    ylab("Percentage of cells (%)") +
+    theme_barplot 
+
+# save plot
+ggsave(barplot_lineages + theme_barplot_pdf,
+    filename = file.path(plots_dir, "barplot_lineages.png"),
+    height = 7, width = 8.5)
+
+barplot_lineages
+```
+
+***
+
+## FACS gates
+
+Here, we visualize the proportion of cells expressing CD34, CD3 and GPR56, so that it can be compared with the populations isolated after FACS. The following thresholds were employed to assign cells to gates (using Normalised RNA counts and CLR normalised antibody counts):
+
+* **CD34+**: CD34 > 1 expression in the antibody data
+* **CD3+**: CD3E > 0 expression in the RNA data (we did not include this antibody)
+* **GPR56+CD34-**: GPR56 > 1 & CD34 < 1 in antibody data
+* **GPR56-CD34-CD3-**: cells which did not meet any of the above criteria 
+
+<br>
+
+```{r}
+## normalise antibody count data
+seurat_object@assays$ADT <- NormalizeData(seurat_object@assays$ADT, normalization.method = "CLR")
+## add projections as reductions in Seurat object
+## add projections as reduction method
+seurat_object[["umapRef"]] <- CreateDimReducObject(embeddings = umap_cell_table %>%  
+    column_to_rownames(var = "cell_barcode") %>% 
+    dplyr::select(umapx, umapy) %>% 
+    dplyr::rename(umapRef_1 = umapx, umapRef_2 = umapy)  %>%
+    as.matrix(),
+    key = "umapRef_", assay = "RNA")
+
+## make table with expression of the 3 markers used in FACS
+table_markers <- data.frame(cell_barcode = colnames(seurat_object),
+        CD3 = seurat_object@assays$RNA@data["CD3E",],
+        CD34 = seurat_object@assays$ADT@data["CD34.1",],
+        GPR56 = seurat_object@assays$ADT@data["GPR56",],
+        sample = sample_report) %>% 
+    left_join(umap_cell_table %>% dplyr::select(cell_barcode, celltype)) %>% 
+    mutate(gate = case_when(CD34 > 1 ~ "CD34+",
+        CD3 > 0 ~ "CD3+", 
+        GPR56 > 1 & CD34 < 1 ~ "CD34-GPR56+"),
+        gate = ifelse(is.na(gate), "CD34-CD3-GPR56-", gate),
+        gate = factor(gate, levels = c("CD3+", "CD34+", "CD34-GPR56+", "CD34-CD3-GPR56-")))
+
+## tally number of cells/marker
+sum_markers <- table_markers %>% 
+    group_by(gate) %>% 
+    dplyr::summarise(ncells = n()) %>% 
+    mutate(prop = ncells/sum(ncells))
+
+## barplot 
+barplot_markers <- ggplot(sum_markers, 
+    aes(x = gate, y = prop*100, fill = gate)) +
+    geom_bar(stat = "identity") +
+    scale_fill_viridis_d(option = "magma", end = 0.8) +
+    geom_text(data = sum_markers %>% filter(prop > 0.05), 
+        aes(label = ncells), size = 5, color = "white",
+        position = position_stack(vjust = 0.5)) +
+    ylab("Percentage of cells (%)") +
+    theme_barplot +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+## save plot
+ggsave(barplot_markers + theme_barplot_pdf + theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1)),
+    filename = file.path(plots_dir, "barplot_facs_gates.png"),
+    height = 7, width = 8.5)
+barplot_markers
+```
+
+***
+
+### Celltypes
+
+The last plot shows proportion of cells in each of the gates for each of the lineages
+
+<br>
+
+```{r}
+celltype_gates <- table_markers %>% 
+    mutate(lineage = case_when(celltype %in% hspc ~ "HSPC",
+        celltype %in% tcells ~ "T cells",
+        celltype %in% nkcells ~ "NK cells",
+        celltype %in% bcells ~ "B cells",
+        celltype %in% myeloid ~ "Myeloid",
+        celltype %in% erythroid ~ "Erythroid")) %>% 
+    group_by(gate, lineage) %>% 
+    tally() %>% 
+    mutate(prop = n/sum(n),
+        lineage = factor(lineage, 
+        levels = rev(c("Myeloid", "T cells", "HSPC", "NK cells", "Erythroid", "B cells"))))
+
+## barplot 
+barplot_markers_cells <- ggplot(celltype_gates, 
+    aes(x = gate, y = prop*100, fill = lineage)) +
+    geom_bar(stat = "identity") +
+    scale_fill_viridis_d(option = "inferno", end = 0.8, direction = 1) +
+    ylab("Percentage of cells (%)") +
+    theme_barplot +
+    theme(axis.text.x = element_text(size = 12, angle = 45, vjust = 1, hjust = 1))
+
+## save plot
+ggsave(barplot_markers_cells + theme_barplot_pdf + 
+    theme(axis.text.x = element_text(size = 15)), 
+    filename = file.path(plots_dir, "gates_celltype.png"),
+    height = 7, width = 10.5)
+barplot_markers_cells
+```
+
+***
+
+```{r save_seurat, include=FALSE}
+## add projection info as metadata
+seurat_object@meta.data <- seurat_object@meta.data %>% rownames_to_column(var = "cell_barcode") %>% 
+    left_join(umap_cell_table) %>% 
+    column_to_rownames(var = "cell_barcode")
+
+## add projection as embedding
+seurat_object[["umapRef"]] <- CreateDimReducObject(embeddings = seurat_object@meta.data %>%  
+    dplyr::select(umapx, umapy) %>% 
+    dplyr::rename(umapRef_1 = umapx, umapRef_2 = umapy)  %>%
+    as.matrix(),
+    key = "umapRef_", assay = "RNA")
+
+Idents(seurat_object) <- seurat_object@meta.data$celltype
+dir.create(paste0("data/", sample_report, "/seurat"))
+## save seurat
+saveRDS(seurat_object, file = paste0("data/", sample_report, "/seurat/seurat_projected.rds"))
+```
+
+# Source
+* <a download="summary_report.Rmd" href="`r base64enc::dataURI(file = params$rmd, mime = 'text/rmd',
+    encoding = 'base64')`">R Markdown source file (to produce this document)</a>
+
+```{r}
+save.image()
+```
+

@@ -1,0 +1,186 @@
+# rules to process fastqs to analyse WTA
+
+
+### input, output and shell paths are all relative to the project directory ###
+
+configfile: "config.yml"
+
+rule all:
+    input:
+        expand("data/{patient_wta}/outs/possorted_genome_bam.bam",
+               patient_wta = config["patients_wta"]),
+        expand("raw_data/{patient_cite}/{modality}/logs/rename_fastqs.log",
+               patient_cite = config["patients_cite"],
+               modality = config["modalities"]),
+        expand("raw_data/{patient_cite}/libraries.csv",
+               patient_cite = config["patients_cite"]),
+        expand("data/{patient_cite}/outs/possorted_genome_bam.bam",
+               patient_cite = config["patients_cite"]),
+        expand("results/summary_reports/{patient_cite}/{patient_cite}_summary_report.html",
+               patient_cite = config["patients_cite"])
+
+
+import glob
+import re
+
+# this is necessary to avoid ambiguous rules
+wildcard_constraints:
+    patient_cite='|'.join(config["patients_cite"]),
+    patient_wta='|'.join(config["patients_wta"])
+
+
+# merge fastq files in one single file for read1 and read2
+rule merge_fastqs_wta:
+    input:
+        fastqs_read1 = lambda wildcards: sorted(glob.glob("raw_data/{patient_wta}/*read1*".format(patient_wta = wildcards.patient_wta))),
+        fastqs_read2 = lambda wildcards: sorted(glob.glob("raw_data/{patient_wta}/*read2*".format(patient_wta = wildcards.patient_wta)))
+    output:
+        merged_read1 = temp("raw_data/{patient_wta}/wta_read1.fastq.gz"),
+        merged_read2 = temp("raw_data/{patient_wta}/wta_read2.fastq.gz")
+    params:
+        directory = "raw_data/{patient_wta}/unmerged_fastqs"
+    log:
+        "data/{patient_wta}/logs/merge_fastqs.log"
+    shell:
+        "cat {input.fastqs_read1} > {output.merged_read1} ; "
+        "cat {input.fastqs_read2} > {output.merged_read2} ; "
+        # "mkdir {params.directory} ; "
+        # "mv {input.fastqs_read1} {input.fastqs_read2} {params.directory} "
+        "2> {log}"
+
+
+# change fastq file names to the cellranger format
+rule rename_fastqs_wta:
+    input:
+        fastq1 = "raw_data/{patient_wta}/wta_read1.fastq.gz",
+        fastq2 = "raw_data/{patient_wta}/wta_read2.fastq.gz"
+    output:
+        renamed1 = temp("raw_data/{patient_wta}/{patient_wta}_S1_L001_R1_001.fastq.gz"),
+        renamed2 = temp("raw_data/{patient_wta}/{patient_wta}_S1_L001_R2_001.fastq.gz")
+    log:
+        "raw_data/{patient_wta}/logs/rename_fastqs.log"
+    shell:
+        "mv {input.fastq1} {output.renamed1} ; "
+        "mv {input.fastq2} {output.renamed2} "
+        "2> {log}"
+
+# rule cell ranger count
+# it requires to download cellranger and export the directory to the $PATH variable
+rule cellranger_count_wta:
+    input:
+        fastq1 = "raw_data/{patient_wta}/{patient_wta}_S1_L001_R1_001.fastq.gz",
+        fastq2 = "raw_data/{patient_wta}/{patient_wta}_S1_L001_R2_001.fastq.gz"
+    output:
+        bam = "data/{patient_wta}/outs/possorted_genome_bam.bam",
+        barcodes = "data/{patient_wta}/outs/filtered_feature_bc_matrix/barcodes.tsv.gz"
+    params:
+        ncells = lambda wildcards: config["cell_numbers"][wildcards.patient_wta],
+        transcriptome = config["cellranger"]["transcriptome"],
+        fastq_dir = "raw_data/{patient_wta}",
+        sample_name = lambda wildcards: re.sub("_", "", "{patient_wta}".format(patient_wta = wildcards.patient_wta))
+    log:
+        "data/{patient_wta}/logs/cellranger_count.log"
+    shell:
+        "cellranger count "
+        "--id={wildcards.patient_wta} "
+        "--fastqs={params.fastq_dir} "
+        "--transcriptome={params.transcriptome} "
+        "--expect-cells={params.ncells} "
+        "--sample={params.sample_name} "
+        "2> {log} ; "
+        # move output files to the patient specific data folder
+        "mv {wildcards.patient_wta}/* data/{wildcards.patient_wta}/ ; "
+        "rm -r {wildcards.patient_wta}/"
+
+# merge fastq files in one single file for read1 and read2
+rule merge_fastqs_cite:
+    input:
+        fastqs_read1 = lambda wildcards: sorted(glob.glob("raw_data/{patient_cite}/{modality}/*read1*".format(patient_cite = wildcards.patient_cite,
+                                                                                                              modality = wildcards.modality))),
+        fastqs_read2 = lambda wildcards: sorted(glob.glob("raw_data/{patient_cite}/{modality}/*read2*".format(patient_cite = wildcards.patient_cite,
+                                                                                                              modality = wildcards.modality)))
+    output:
+        merged_read1 = temp("raw_data/{patient_cite}/{modality}/read1.fastq.gz"),
+        merged_read2 = temp("raw_data/{patient_cite}/{modality}/read2.fastq.gz")
+    log:
+        "raw_data/{patient_cite}/{modality}/logs/merge_fastqs.log"
+    shell:
+        "cat {input.fastqs_read1} > {output.merged_read1} ; "
+        "cat {input.fastqs_read2} > {output.merged_read2} "
+        "2> {log}"
+
+
+# change fastq file names to the cellranger format
+rule rename_fastqs_cite:
+    input:
+        fastq1 = "raw_data/{patient_cite}/{modality}/read1.fastq.gz",
+        fastq2 = "raw_data/{patient_cite}/{modality}/read2.fastq.gz"
+    output:
+        renamed1 = "raw_data/{patient_cite}/{modality}/{patient_cite}_S1_L001_R1_001.fastq.gz",
+        renamed2 = "raw_data/{patient_cite}/{modality}/{patient_cite}_S1_L001_R2_001.fastq.gz",
+        log = "raw_data/{patient_cite}/{modality}/logs/rename_fastqs.log"
+    log:
+        "raw_data/{patient_cite}/{modality}/logs/rename_fastqs.log"
+    shell:
+        "mv {input.fastq1} {output.renamed1} ; "
+        "mv {input.fastq2} {output.renamed2} "
+        "2> {log}"
+
+# for CITEseq a file specifying the fastqs of RNA and antibodies needs to be created
+rule make_library_file:
+    output:
+        "raw_data/{patient_cite}/libraries.csv"
+    log:
+        "raw_data/{patient_cite}/logs/make_library_file.log"
+    conda:
+        "envs/mito_mutations.yml"
+    shell:
+        "Rscript ../R/make_library_file.R "
+        "-p {wildcards.patient_cite} "
+        "-o {output} "
+        "2> {log}"
+
+
+# rule cell ranger count for citeseq
+# it requires a libraries.csv file indicating the path where to find the wta and antibody fastqs
+# it requires to download cellranger and export the directory to the $PATH variable
+rule cellranger_count_cite:
+    input:
+        log = "raw_data/{patient_cite}/wta/logs/rename_fastqs.log",
+        log_adt = "raw_data/{patient_cite}/ab_citeseq/logs/rename_fastqs.log",
+        libraries = "raw_data/{patient_cite}/libraries.csv"
+    output:
+        bam = "data/{patient_cite}/outs/possorted_genome_bam.bam",
+        barcodes = "data/{patient_cite}/outs/filtered_feature_bc_matrix/barcodes.tsv.gz"
+    params:
+        ncells = lambda wildcards: config["cell_numbers"][wildcards.patient_cite],
+        transcriptome = config["cellranger"]["transcriptome"],
+        features = "data/citeseq_barcodes/citeseq_ab_barcodes.csv",
+    log:
+        "data/{patient_cite}/logs/cellranger_count.log"
+    shell:
+        "cellranger count "
+        "--id={wildcards.patient_cite} "
+        "--libraries={input.libraries} "
+        "--transcriptome={params.transcriptome} "
+        "--expect-cells={params.ncells} "
+        "--feature-ref={params.features} "
+        "2> {log} ; "
+        # move output files to data directory
+        "mv data/{wildcards.patient_cite}/logs {wildcards.patient_cite}/ ;"
+        "rm -r data/{wildcards.patient_cite} ; "
+        "mv {wildcards.patient_cite} data/ ; "
+        "rm raw_data/{wildcards.patient_cite}/*/{wildcards.patient_cite}*"
+
+# make summary report with projection to reference map and QC plots
+rule summary_report:
+    input:
+        "data/{patient_cite}/logs/cellranger_count.log"
+    output:
+        "results/summary_reports/{patient_cite}/{patient_cite}_summary_report.html"
+    params:
+        dir_10x = "data/{patient_cite}/outs/filtered_feature_bc_matrix"
+    conda:
+        "envs/mito_mutations.yml"
+    script:
+        "../R/summary_report.Rmd"
