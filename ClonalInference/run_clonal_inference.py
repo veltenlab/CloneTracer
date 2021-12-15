@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import itertools
 import pickle
 import dill
+import json
 import argparse
 import time
 from datetime import datetime
@@ -35,8 +36,6 @@ if __name__ == "__main__":
   parser.add_argument("--cnv_celltype", "-c", help="Boolean indicating whether to use the celltype-specific model for CNVs", type=bool, default=False)
   parser.add_argument("--gpu", "-g", help="Boolean indicating whether to use a GPU for model inference", type=bool, default=False)  
   args = parser.parse_args()
-
-
 
 # import helper functions to run the model
 from helper_functions import *
