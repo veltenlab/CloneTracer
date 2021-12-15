@@ -320,7 +320,6 @@ class tree:
                     hcnv[j] = pyro.sample("het_{}".format(m), dist.Beta(h_alpha[j], h_beta[j]))
 
                     # r in this case comes from a Beta distribution. Alpha is multiplied by 1.5 or 0.5
-                    #r[j] = pyro.sample("r_{}".format(m), dist.Beta(1, 1))
                     r[j] = pyro.sample("r_{}".format(m), dist.Beta(h_alpha[j]*r_cnv[j], h_beta[j])) 
 
                     #the observation we have for this quantity is the ratio between r[j] (cancer) and hcnv[j] (healthy)
@@ -539,7 +538,7 @@ class tree:
             
                  
     # function to select best trees after adding a new mutation
-    def select_tree(self, num_iter, init, num_particles = 5, vect_particles=False):
+    def select_tree(self, num_iter, init, num_particles = 5, vect_particles=False, print_elbo = False):
         
         print("Choosing best tree among {} potential candidates".format(len(self.potential_trees)))
         
@@ -588,8 +587,6 @@ class tree:
                                          N = self.N[:, self.muts],
                                          mut_type = [self.mut_type.tolist()[i] for i in self.muts],
                                          A = self.potential_trees[tree],
-#                                          h_alpha = self.h_alpha,
-#                                          h_beta = self.h_beta,
                                          h_alpha = self.h_alpha[self.muts],
                                          h_beta = self.h_beta[self.muts],
                                          af_alpha = af_alpha,
@@ -663,7 +660,8 @@ class tree:
         self.parameters = step_params
         
         # print line plot with ELBOs
-        self.print_elbo(num_iter = num_iter, init = init)
+        if print_elbo:
+            self.print_elbo(num_iter = num_iter, init = init)
                    
     # add mutation to selected tree 
     def add_mutation(self):
@@ -1089,7 +1087,37 @@ class tree:
             
         self.clone_probs[tree+1] = pyro.param("clonal_probs")
         
+    # function to run the model (ideally for non-iteractive running of the mode)
+    def infer_hierarchy(self, num_iter, init, out_dir, num_particles = 5, print_elbo = False):
         
+        print("Inferring clonal hierarchies...")
+        
+        # run inference model
+        for i in range(len(self.names)-1):
+            
+            if i == 0:
+                
+                # select intital two mutations based on coverage
+                self.sel_mutation(initial = True)
+                self.select_tree(num_iter, init)
+            
+            else:
+                
+                self.add_mutation()
+                self.select_tree(num_iter, init)
+                
+        # compute clonal probabilities for selected trees
+        for i in range(len(self.tree_indices)):
+            self.clonal_assignment(tree = i)
+            
+        # export object as pickle
+        self.export_pickle(out_dir + "/name_out.pickle")
+        
+        # export tree class object as pickle
+        with open(out_dir + "/" + self.name + "_tree.pickle", "wb") as f:
+            pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
+        
+            
     # function to export potential_trees, parameters of posterior distribution and clonal assignment probabilities
     def export_pickle(self, file):
         
@@ -1140,12 +1168,13 @@ class tree:
         print("Tree object saved as pickle!")
         
     # function to run the model on all possible trees
-    def run_all_trees(self, outfile, num_iter = 300):
+    def run_all_trees(self, out_dir, num_iter = 300):
         
         print("Running model for all trees")
         print("Start time: {}".format(datetime.now()))
         
         start = timer()
+        
         
         self.sel_mutation(initial = True)
 
@@ -1158,9 +1187,13 @@ class tree:
             
         self.select_tree(num_iter = num_iter, init = 50)
         
-        # save object as pickle
-        self.export_pickle(outfile)
+        # save output as pickle
+        self.export_pickle(out_dir + "/all_trees_", self.name, ".pickle")
         
+        # save tree object as pickle
+        with open(out_dir + "/all_trees_" + self.name + "_tree.pickle", "wb") as f:
+            pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
+            
         end = timer()
         tim = timedelta(seconds=end-start)
         h, r = divmod(tim.seconds, 3600)
@@ -1240,90 +1273,7 @@ class tree:
         # posterior predictive distributions for model evaluation
         self.post_predictive[tree] = post            
 
-    # function to compute posterior distribution of clonal assignment
-    def clonal_assignment_new_data(self, tree, num_iter = 0):
-        
-        # run svi for the tree of interest        
-        optimiser = pyro.optim.AdagradRMSProp({})
-                  
-        # compute clonal assignments
-        loss_func = pyro.infer.TraceEnum_ELBO(max_plate_nesting = 1, num_particles = 5)
 
-        # Infer parameters for the tree of interest
-        svi = SVI(self.model, self.guide, optimiser, loss=loss_func)
-        
-        # clear previous parameters
-        pyro.clear_param_store()
-        
-        if num_iter == 0:
-            num_iter = self.num_iter
-
-        # iterate until lowest ELBO was obtained
-        nit = self.best_iter[tree]
-            
-        # run the model on the selected tree
-        for i in range(nit):
-            
-            svi.step(M = self.M[:, self.muts],
-                     N = self.N[:, self.muts],
-                     mut_type = [self.mut_type.tolist()[i] for i in self.muts],
-                     A = self.tree[tree],
-                     h_alpha = self.h_alpha[self.muts],
-                     h_beta = self.h_beta[self.muts],
-                     af_alpha = self.af_alpha[:,self.muts],
-                     af_beta = self.af_beta[:,self.muts],
-                     r_cnv = self.r_cnv[self.muts],
-                     names = [self.names[i] for i in self.muts],
-                     class_af = self.class_af,
-                     class_names = self.class_names, 
-                     class_assign = self.class_assign,
-                     cnv_celltype = self.cnv_celltype,
-                     celltype = self.celltype,
-                     celltype_names = self.celltype_names,
-                     cnv_ct_mean = self.cnv_ct_mean,
-                     cnv_ct_sd = self.cnv_ct_sd)
-        
-        print("Computing clonal assignment probabilities for tree {}".format(tree))
-
-        # set up inference algorithm
-        svi = SVI(self.model, self.guide_clones, optimiser, loss=loss_func)
-        
-        start = timer()
-        
-        for i in range(num_iter):
-            
-            svi.step(M = self.M_new[:, self.muts],
-                     N = self.N_new[:, self.muts],
-                     mut_type = [self.mut_type.tolist()[i] for i in self.muts],
-                     A = self.tree[tree],
-                     h_alpha = self.h_alpha[self.muts],
-                     h_beta = self.h_beta[self.muts],
-                     af_alpha = self.af_alpha[:,self.muts],
-                     af_beta = self.af_beta[:,self.muts],
-                     r_cnv = self.r_cnv[self.muts],
-                     names = [self.names[i] for i in self.muts],
-                     class_af = self.class_af,
-                     class_names = self.class_names_new, 
-                     class_assign = self.class_assign_new,
-                     cnv_celltype = self.cnv_celltype,
-                     celltype = self.celltype_new,
-                     celltype_names = self.celltype_names,
-                     cnv_ct_mean = self.cnv_ct_mean,
-                     cnv_ct_sd = self.cnv_ct_sd)
-    
-        # print run time
-        tree_end = timer()
-        tree_time = timedelta(seconds=tree_end-start)
-        m, s = divmod(tree_time.seconds, 60)
-        
-        print("Clonal assignment probabilities computed in {}m and {}s".format(m,s))
-        
-        # save clonal probabilites as attribute
-        if len(self.clone_probs) == 0:
-            
-            self.clone_probs = {}
-            
-        self.clone_probs[tree+1] = pyro.param("clonal_probs")
         
                     
                 

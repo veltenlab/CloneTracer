@@ -34,8 +34,13 @@ if __name__ == "__main__":
   parser.add_argument("--single_sample", "-s", help="Boolean indicating whether the bulk data comes from one or more samples (e.g. different time points, T cells and myeloid cells)", 
                       type=bool, default=True)
   parser.add_argument("--cnv_celltype", "-c", help="Boolean indicating whether to use the celltype-specific model for CNVs", type=bool, default=False)
-  parser.add_argument("--gpu", "-g", help="Boolean indicating whether to use a GPU for model inference", type=bool, default=False)  
-  args = parser.parse_args()
+  parser.add_argument("--gpu", "-g", help="Boolean indicating whether to use a GPU for model inference", type=bool, default=False)   
+  parser.add_argument("--number_iterations", "-t", help="Number of iterations for inferring clonal hierarchies. Defaults to 300 for samples with only SNVs and 500 otherwise. Minimum 60.", 
+                      type=int, default=300)
+  parser.add_argument("--all_trees", "-a", help="Boolean indicating whether to run the model for all possible trees. Defaults to False which means a heuristic tree building approach is used.", 
+                      type=bool, default=False)  
+
+args = parser.parse_args()
 
 # import helper functions to run the model
 from helper_functions import *
@@ -54,81 +59,117 @@ if gpu:
 else:
     torch.set_default_tensor_type(torch.DoubleTensor)
     
-# load data from JSON file
-with open(json_in, "rb") as f:
-    input_data = json.load(f)
+def create_tree_class(input_file, out_dir, name, single, cnv_celltype, gpu):
     
-# get number of mutations
-nmuts = len(input_data["mut_names"])
+    # load data from JSON file
+    with open(input_file, "rb") as f:
+        input_data = json.load(f)
 
-# if there are more than one sample 
-    
-# make a dictionary with input data    
-data_svi = {"M": torch.Tensor(input_data["M"]),
-             "N": torch.Tensor(input_data["N"]),
-             "mut_type": torch.Tensor(input_data["mut_type"]),
-             "names": input_data["mut_names"],
-             "barcodes": input_data["cell_barcode"],
-             "class_af": single,
-             "cnv_celltype": cnv_celltype}
+    # get number of mutations
+    nmuts = len(input_data["mut_names"])
 
-# bulk data if present
-for entry in ["bulk_M", "bulk_N", "r_cnv"]:
-    
-    # if present add information to dictionary
-    if entry in input_data and input_data["entry"]: 
-    
-        data_svi[entry] = torch.Tensor(input_data[entry])
-        
-    # otherwise set values to 0    
-    else:
-        data_svi[entry] = torch.zeros(nmuts)
-        
-# priors for heteroplasmy (default values are 1000,1000 for nuclear, 1,1 for mitochondria and 2,100 for CNVs)
-for entry in ["h_alpha", "h_beta"]:
-    
-    # if present add information to dictionary
-    if entry in input_data and input_data["entry"]: 
-    
-        data_svi[entry] = torch.Tensor(input_data[entry])
-        
-    # otherwise set to default values
-    else:
-        
-        h_mapper = {0: 2, 1: 1000, 2: 1}
-        
-        data_svi[entry] = torch.Tensor([h_mapper[mut] for mut in input_data["mut_type"]])  
-        
-        
-# add additional information for celltype-specific CNV model (if present)
-for entry in ["class_assign", "class_names", "celltype", "celltype_names", "cnv_ct_mean", "cnv_ct_sd", "umapx", "umapy"]:
-    
-    if entry in input_data and input_data["entry"]: 
-        
-        if entry in ["class_assign", "celltype"] and gpu:
-            
-            data_svi[entry] = torch.cuda.IntTensor(input_data[entry])
-        
-        elif entry in ["class_assign", "celltype"] and not gpu:
-            
-            data_svi[entry] = torch.IntTensor(input_data[entry])
-            
-        elif entry == "cnv_ct_mean":
-            
+    # if there are more than one sample 
+
+    # make a dictionary with input data    
+    data_svi = {"M": torch.Tensor(input_data["M"]),
+                 "N": torch.Tensor(input_data["N"]),
+                 "mut_type": torch.Tensor(input_data["mut_type"]),
+                 "names": input_data["mut_names"],
+                 "barcodes": input_data["cell_barcode"],
+                 "class_af": single,
+                 "cnv_celltype": cnv_celltype}
+
+    # bulk data if present
+    for entry in ["bulk_M", "bulk_N", "r_cnv"]:
+
+        # if present add information to dictionary
+        if entry in input_data and input_data[entry]: 
+
             data_svi[entry] = torch.Tensor(input_data[entry])
-            
-        elif entry == "cnv_ct_sd":
-            
-            data_svi[entry] = torch.tensor(input_data[entry])
-            
+
+        # otherwise set values to 0    
         else:
-            
-            data_svi[entry] = input_data[entry]
-            
+            data_svi[entry] = torch.zeros(nmuts)
+
+    # priors for heteroplasmy (default values are 1000,1000 for nuclear, 1,1 for mitochondria and 2,100 for CNVs)
+    for entry in ["h_alpha", "h_beta"]:
+
+        # if present add information to dictionary
+        if entry in input_data and input_data[entry]: 
+
+            data_svi[entry] = torch.Tensor(input_data[entry])
+
+        # otherwise set to default values
+        else:
+
+            h_mapper = {0: 2, 1: 1000, 2: 1}
+
+            data_svi[entry] = torch.Tensor([h_mapper[mut] for mut in input_data["mut_type"]])  
+
+
+    # add additional information for celltype-specific CNV model (if present)
+    for entry in ["class_assign", "class_names", "celltype", "celltype_names", "cnv_ct_mean", "cnv_ct_sd", "umapx", "umapy"]:
+
+        if entry in input_data and input_data[entry]: 
+
+            if entry == "class_assign" and gpu:
+
+                data_svi[entry] = torch.cuda.IntTensor(input_data[entry])
+
+            elif entry == "class_assign" and not gpu:
+
+                data_svi[entry] = torch.IntTensor(input_data[entry])
+
+            elif entry == "cnv_ct_mean":
+
+                data_svi[entry] = torch.Tensor(input_data[entry])
+
+            elif entry in ["cnv_ct_sd", "celltype"]:
+
+                data_svi[entry] = torch.tensor(input_data[entry])
+
+            else:
+
+                data_svi[entry] = input_data[entry]
+
+        else:
+
+            data_svi[entry] = []
+
+    # rename bulk data entries
+    data_svi["af_alpha"] = data_svi["bulk_M"]
+    data_svi["af_beta"] = data_svi["bulk_N"]
+
+    t = tree(name, data_svi)
+    
+    return(t)
+
+# create tree class
+t = create_tree_class(json_in, out_dir, name, single, cnv_celltype, gpu)
+
+# set number of iterations (defaults to 300 when only SNVs are present and 500 when CNVs are present)
+num_iter = args.number_iterations
+
+if num_iter != 300:
+    continue
+else:
+    if torch.nonzero(t.mut_type == 0).size()[0] == 0:
+        
+        num_iter = 300
+        
     else:
         
-        data_svi[entry] = []
-            
+        num_iter = 500
+    
+init = num_iter - 100
 
-with open(out_dir+"/test_dict.pickle") as t:
-    pickle.dump(data_svi, t, protocol=pickle.HIGHEST_PROTOCOL)
+# run model
+if not args.all_trees:
+
+    # infer clonal hierarchy and compute clonal probabilities for the selected trees
+    t.infer_hierarchy(num_iter, init, out_dir)
+    
+else:
+    
+    # run model for all possible trees
+    t.run_all_trees(out_dir = out_dir, num_iter = num_iter)
