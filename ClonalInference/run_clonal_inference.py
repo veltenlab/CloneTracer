@@ -36,7 +36,7 @@ if __name__ == "__main__":
   parser.add_argument("--cnv_celltype", "-c", help="Boolean indicating whether to use the celltype-specific model for CNVs", type=bool, default=False)
   parser.add_argument("--gpu", "-g", help="Boolean indicating whether to use a GPU for model inference", type=bool, default=False)   
   parser.add_argument("--number_iterations", "-t", help="Number of iterations for inferring clonal hierarchies. Defaults to 300 for samples with only SNVs and 500 otherwise. Minimum 60.", 
-                      type=int, default=300)
+                      type=int, default=0)
   parser.add_argument("--all_trees", "-a", help="Boolean indicating whether to run the model for all possible trees. Defaults to False which means a heuristic tree building approach is used.", 
                       type=bool, default=False)  
 
@@ -150,13 +150,14 @@ t = create_tree_class(json_in, out_dir, name, single, cnv_celltype, gpu)
 # set number of iterations (defaults to 300 when only SNVs are present and 500 when CNVs are present)
 num_iter = args.number_iterations
 
-if num_iter != 300:
-    continue
-else:
+if num_iter == 0:
+    
+    # only SNVs
     if torch.nonzero(t.mut_type == 0).size()[0] == 0:
         
         num_iter = 300
         
+    # sample with CNVs
     else:
         
         num_iter = 500

@@ -1111,7 +1111,7 @@ class tree:
             self.clonal_assignment(tree = i)
             
         # export object as pickle
-        self.export_pickle(out_dir + "/name_out.pickle")
+        self.export_pickle(out_dir + "/" + self.name + "_out.pickle")
         
         # export tree class object as pickle
         with open(out_dir + "/" + self.name + "_tree.pickle", "wb") as f:
