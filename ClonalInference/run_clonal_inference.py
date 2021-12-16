@@ -28,18 +28,21 @@ pyro.set_rng_seed(100)
 # parse command line specifications
 if __name__ == "__main__":
   parser = argparse.ArgumentParser()
-  parser.add_argument("--input", "-i", help="Input JSON file. See a detailed explanation of the format in https://github.com/veltenlab/AMLScripts/tree/master/ClonalInference", type=str)
+  parser.add_argument("--input", "-i", help="Input JSON file. See a detailed explanation of the format in https://github.com/veltenlab/AMLScripts/tree/master/ClonalInference", 
+                      type=str)
   parser.add_argument("--name", "-n", help="Sample name", type=str)
   parser.add_argument("--output_dir", "-o", help="Output directory. Results will be saved as a pickle file.", type=str)
   parser.add_argument("--multiple_samples", "-s", 
                       help="Boolean indicating whether the bulk data comes from more than one sample (e.g. different time points, T cells and myeloid cells). Default: False", 
-                      type=bool, default=False)
-  parser.add_argument("--cnv_celltype", "-c", help="Boolean indicating whether to use the celltype-specific model for CNVs", type=bool, default=False)
-  parser.add_argument("--gpu", "-g", help="Boolean indicating whether to use a GPU for model inference", type=bool, default=False)   
-  parser.add_argument("--number_iterations", "-t", help="Number of iterations for inferring clonal hierarchies. Defaults to 300 for samples with only SNVs and 500 otherwise. Minimum 60.", 
+                      default=False, action="store_true")
+  parser.add_argument("--cnv_celltype", "-c", help="Boolean indicating whether to use the celltype-specific model for CNVs", default=False, action="store_true")
+  parser.add_argument("--gpu", "-g", help="Boolean indicating whether to use a GPU for model inference", default=False, action="store_true")   
+  parser.add_argument("--number_iterations", "-t", 
+                      help="Number of iterations for inferring clonal hierarchies. Defaults to 300 for samples with only SNVs and 500 otherwise. Minimum 60.", 
                       type=int, default=0)
-  parser.add_argument("--all_trees", "-a", help="Boolean indicating whether to run the model for all possible trees. Defaults to False which means a heuristic tree building approach is used.", 
-                      type=bool, default=False)  
+  parser.add_argument("--all_trees", "-a", 
+                      help="Boolean indicating whether to run the model for all possible trees. Defaults to False which means a heuristic tree building approach is used.", 
+                      default=False, action="store_true")  
 
 args = parser.parse_args()
 
@@ -166,7 +169,7 @@ if num_iter == 0:
 init = num_iter - 100
 
 # run model
-if not args.all_trees:
+if args.all_trees == False:
 
     # infer clonal hierarchy and compute clonal probabilities for the selected trees
     t.infer_hierarchy(num_iter, init, out_dir)

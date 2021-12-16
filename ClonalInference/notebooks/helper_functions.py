@@ -564,7 +564,7 @@ class tree:
                     cnv_ratio_sd = pyro.param("CNVratio_sd_{}".format(m), torch.tensor(0.05), constraint = constraints.positive)
 
                     # latent variable cnv_ratio
-                    cnv_ratio[ind] = pyro.sample("cnv_ratio_{}".format(m), dist.Normal(cnv_ratio_mean, cnv_ratio_sd))
+                    cnv_ratio = pyro.sample("cnv_ratio_{}".format(m), dist.Normal(cnv_ratio_mean, cnv_ratio_sd))
                         
                                             
                 else:

@@ -564,7 +564,7 @@ class tree:
                     cnv_ratio_sd = pyro.param("CNVratio_sd_{}".format(m), torch.tensor(0.05), constraint = constraints.positive)
 
                     # latent variable cnv_ratio
-                    cnv_ratio[ind] = pyro.sample("cnv_ratio_{}".format(m), dist.Normal(cnv_ratio_mean, cnv_ratio_sd))
+                    cnv_ratio = pyro.sample("cnv_ratio_{}".format(m), dist.Normal(cnv_ratio_mean, cnv_ratio_sd))
                         
                                             
                 else:
@@ -1271,7 +1271,7 @@ class tree:
             self.add_mutation()
             
             
-        self.select_tree(num_iter = num_iter, init = 50)
+        self.select_tree(num_iter = num_iter, init = 50, print_elbo = False)
         
         # save output as pickle
         self.export_pickle(out_dir + "/all_trees_", self.name, ".pickle")
