@@ -31,8 +31,9 @@ if __name__ == "__main__":
   parser.add_argument("--input", "-i", help="Input JSON file. See a detailed explanation of the format in https://github.com/veltenlab/AMLScripts/tree/master/ClonalInference", type=str)
   parser.add_argument("--name", "-n", help="Sample name", type=str)
   parser.add_argument("--output_dir", "-o", help="Output directory. Results will be saved as a pickle file.", type=str)
-  parser.add_argument("--single_sample", "-s", help="Boolean indicating whether the bulk data comes from one or more samples (e.g. different time points, T cells and myeloid cells)", 
-                      type=bool, default=True)
+  parser.add_argument("--multiple_samples", "-s", 
+                      help="Boolean indicating whether the bulk data comes from more than one sample (e.g. different time points, T cells and myeloid cells). Default: False", 
+                      type=bool, default=False)
   parser.add_argument("--cnv_celltype", "-c", help="Boolean indicating whether to use the celltype-specific model for CNVs", type=bool, default=False)
   parser.add_argument("--gpu", "-g", help="Boolean indicating whether to use a GPU for model inference", type=bool, default=False)   
   parser.add_argument("--number_iterations", "-t", help="Number of iterations for inferring clonal hierarchies. Defaults to 300 for samples with only SNVs and 500 otherwise. Minimum 60.", 
@@ -49,7 +50,7 @@ from helper_functions import *
 json_in = args.input
 out_dir = args.output_dir
 name = args.name
-single = args.single_sample
+mult_samp = args.multiple_samples
 cnv_celltype = args.cnv_celltype
 gpu = args.gpu
 
@@ -59,7 +60,7 @@ if gpu:
 else:
     torch.set_default_tensor_type(torch.DoubleTensor)
     
-def create_tree_class(input_file, out_dir, name, single, cnv_celltype, gpu):
+def create_tree_class(input_file, name, mult_samp, cnv_celltype, gpu):
     
     # load data from JSON file
     with open(input_file, "rb") as f:
@@ -76,7 +77,7 @@ def create_tree_class(input_file, out_dir, name, single, cnv_celltype, gpu):
                  "mut_type": torch.Tensor(input_data["mut_type"]),
                  "names": input_data["mut_names"],
                  "barcodes": input_data["cell_barcode"],
-                 "class_af": single,
+                 "class_af": mult_samp,
                  "cnv_celltype": cnv_celltype}
 
     # bulk data if present
@@ -145,7 +146,7 @@ def create_tree_class(input_file, out_dir, name, single, cnv_celltype, gpu):
     return(t)
 
 # create tree class
-t = create_tree_class(json_in, out_dir, name, single, cnv_celltype, gpu)
+t = create_tree_class(json_in, name, mult_samp, cnv_celltype, gpu)
 
 # set number of iterations (defaults to 300 when only SNVs are present and 500 when CNVs are present)
 num_iter = args.number_iterations

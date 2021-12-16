@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import itertools
 import pickle
 import dill
+import json
 import time
 from datetime import datetime
 from timeit import default_timer as timer
@@ -105,6 +106,91 @@ def mut_to_node(t, n, children):
 
     return(new_trees)
 
+# function to create tree class object from JSON input file
+def create_tree_class(input_file, name, mult_samp, cnv_celltype, gpu):
+    
+    # load data from JSON file
+    with open(input_file, "rb") as f:
+        input_data = json.load(f)
+
+    # get number of mutations
+    nmuts = len(input_data["mut_names"])
+
+    # if there are more than one sample 
+
+    # make a dictionary with input data    
+    data_svi = {"M": torch.Tensor(input_data["M"]),
+                 "N": torch.Tensor(input_data["N"]),
+                 "mut_type": torch.Tensor(input_data["mut_type"]),
+                 "names": input_data["mut_names"],
+                 "barcodes": input_data["cell_barcode"],
+                 "class_af": mult_samp,
+                 "cnv_celltype": cnv_celltype}
+
+    # bulk data if present
+    for entry in ["bulk_M", "bulk_N", "r_cnv"]:
+
+        # if present add information to dictionary
+        if entry in input_data and input_data[entry]: 
+
+            data_svi[entry] = torch.Tensor(input_data[entry])
+
+        # otherwise set values to 0    
+        else:
+            data_svi[entry] = torch.zeros(nmuts)
+
+    # priors for heteroplasmy (default values are 1000,1000 for nuclear, 1,1 for mitochondria and 2,100 for CNVs)
+    for entry in ["h_alpha", "h_beta"]:
+
+        # if present add information to dictionary
+        if entry in input_data and input_data[entry]: 
+
+            data_svi[entry] = torch.Tensor(input_data[entry])
+
+        # otherwise set to default values
+        else:
+
+            h_mapper = {0: 2, 1: 1000, 2: 1}
+
+            data_svi[entry] = torch.Tensor([h_mapper[mut] for mut in input_data["mut_type"]])  
+
+
+    # add additional information for celltype-specific CNV model (if present)
+    for entry in ["class_assign", "class_names", "celltype", "celltype_names", "cnv_ct_mean", "cnv_ct_sd", "umapx", "umapy"]:
+
+        if entry in input_data and input_data[entry]: 
+
+            if entry == "class_assign" and gpu:
+
+                data_svi[entry] = torch.cuda.IntTensor(input_data[entry])
+
+            elif entry == "class_assign" and not gpu:
+
+                data_svi[entry] = torch.IntTensor(input_data[entry])
+
+            elif entry == "cnv_ct_mean":
+
+                data_svi[entry] = torch.Tensor(input_data[entry])
+
+            elif entry in ["cnv_ct_sd", "celltype"]:
+
+                data_svi[entry] = torch.tensor(input_data[entry])
+
+            else:
+
+                data_svi[entry] = input_data[entry]
+
+        else:
+
+            data_svi[entry] = []
+
+    # rename bulk data entries
+    data_svi["af_alpha"] = data_svi["bulk_M"]
+    data_svi["af_beta"] = data_svi["bulk_N"]
+
+    t = tree(name, data_svi)
+    
+    return(t)
 
 # define a class tree 
 class tree:
