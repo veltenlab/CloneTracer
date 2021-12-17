@@ -1270,8 +1270,12 @@ class tree:
             self.get_children()
             self.add_mutation()
             
-            
+        # run model for all trees    
         self.select_tree(num_iter = num_iter, init = 50, print_elbo = False)
+        
+        # compute clonal probabilities for selected trees
+        for i in range(len(self.tree_indices)):
+            self.clonal_assignment(tree = i)
         
         # save output as pickle
         self.export_pickle(out_dir + "/all_trees_" + self.name + ".pickle")
