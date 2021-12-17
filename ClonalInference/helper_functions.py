@@ -1274,7 +1274,7 @@ class tree:
         self.select_tree(num_iter = num_iter, init = 50, print_elbo = False)
         
         # save output as pickle
-        self.export_pickle(out_dir + "/all_trees_", self.name, ".pickle")
+        self.export_pickle(out_dir + "/all_trees_" + self.name + ".pickle")
         
         # save tree object as pickle
         with open(out_dir + "/all_trees_" + self.name + "_tree.pickle", "wb") as f:
