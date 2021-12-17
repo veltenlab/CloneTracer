@@ -7,5 +7,5 @@ MutaSeq v2 is a methdology to amplify nuclear SNPs and the mitochondrial genome 
 
 Furthermore we have developed a Bayesian model to infer clonal hierarchies from scRNAseq data. All required scripts and detailed explanation on how to implement the model can be found in:
 
-* [ClonalInference](Clonal inference)
+* [Clonal inference](ClonalInference)
 
