@@ -1,4 +1,4 @@
-name: pyro
+name: mutaseqv2
 channels:
   - anaconda
   - conda-forge
