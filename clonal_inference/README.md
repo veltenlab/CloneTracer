@@ -39,7 +39,63 @@ in the manuscript are present in [input data](data).
 
 ### Optional entries
 
-* **r_cnv**: required when CNVs are present, vector of indicating whether the CNV is a gain or a loss (1.5 for gain, 0.5 for loss, 0 for SNVs).
-* **bulk_M**: vector of counts supporting the mutant allele or CNV from bulk data (e.g. exome counts on mutant allele, number of cells with CNV from clinical karyotyping or FISH). In case of more than one sample 
-* **bulk_N**: vector counts supporting the reference allele or diploid data from bulk data (e.g. exome counts on reference allele, number of cells diploid cells from clinical karyotyping or FISH)
+#### CNVs
 
+* **r_cnv**: required when CNVs are present, vector of indicating whether the CNV is a gain or a loss (1.5 for gain, 0.5 for loss, 0 for SNVs).
+
+#### Bulk data
+
+* **bulk_M**: vector of counts supporting the mutant allele or CNV from bulk data (e.g. exome counts on mutant allele, number of cells with CNV from clinical karyotyping or FISH). In case of more than one sample is present (e.g. different time points, T cells and myeloid cells) a list of vectors should be included.
+* **bulk_N**: vector counts supporting the reference allele or diploid data from bulk data (e.g. exome counts on reference allele, number of cells diploid cells from clinical karyotyping or FISH). In case of more than one sample is present (e.g. different time points, T cells and myeloid cells) a list of vectors should be included.
+
+#### Multiple samples
+
+* **class_assign**: zero-indexed vector of integers indicating the class each single cell belongs to. Only required when more than one sample is present in the bulk and single cell data.
+* **class_names**: string with names of the different samples
+
+#### Celltype-specific model for CNVs
+
+* **celltype**: zero-indexed vector of integers indicating the cell type of each single cell. Only required when celltype-specific mode is used for CNVs
+* **celltype_names**: string with names of the cell types present.
+* **cnv_ct_mean**: vector with priors for the fraction of reads on the chromosome with CNV for each cell type. 
+* **cnv_ct_sd**: standard deviation of the prior for the fraction of reads on the chromosome with CNVs.
+
+## Run the model
+
+In order to run the model the scripts [run_clonal_inference.py](run_clonal_inference.py) and [helper_functions.py](helper_functions.py) should be in the same directory. The script run_clonal_inference.py is an executable python script with the following arguments:
+
+### Required
+
+* `-i, --input <filename>`: path to the input JSON file with the format described in [Input file](#input-file).
+* `-n, --name <text>`: sample name.
+* `-o, --output_dir, <filepath>`: path to the output directory
+
+### Optional
+
+* `-t, --number_iterations <integer>`: number of iterations to use in the model inference using SVI. Defaults to 300 for samples with point mutations only and 500 when CNVs are present. 
+* `-s, --multiple_samples`: this flag should be added when more than one sample is included in the bulk and single-cell data (e.g. multiple timepoints).
+* `-c, -cnv_celltype`: add this flag to run the celltype-specific model for CNVs.
+* `-g, -gpu`: include in order to use GPU processor to run the inference model. We recommend to use this option as it results in faster runtimes.
+* `-a, --all_trees`: adding this flag will run the model for all possible trees in the sample. We strongly recommend using the default implementation which uses a heuristic approach (see figure S8 of the manuscript)to reduce the tree search space. This results in much faster runtimes than testing all trees yielding identical results.
+
+To run the model for P1, the following command line argument is used:
+
+```
+python run_clonal_inference.py -i data/input_P1.json -n P1 -o data -t 400 -s -g
+```
+
+In [notebooks](notebooks) there are examples of how the model can be run non-interactively. 
+
+## Output
+
+Two output files are created:
+
+```
+* *_out.pickle
+* *_tree.pickle
+```
+
+## How to create a JSON file
+
+### From R 
+### From Python
