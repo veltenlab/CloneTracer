@@ -121,7 +121,7 @@ pd$read_pickle("data/P1_out.pickle")
 
 ### From R 
 
-Entries described in [Input file](input-file) should be added as entries of a list. The following command generate the input file for P1:
+Entries described in [Input file](#input-file) should be added as entries of a list. The following command generate the input file for P1:
 
 ```
 
