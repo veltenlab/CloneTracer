@@ -25,7 +25,7 @@ conda env create -f envs/clonal_inference.yml
 ```
 ## Input file
 
-The model requires a config file in JSON format (see below how to create a JSON file in R or python, add links to headers). Input files for all patients 
+The model requires a config file in JSON format (see below how to create a JSON file in [R](#with-r) or [python](#with-python), add links to headers). Input files for all patients 
 in the manuscript are present in [input data](data).
 
 ### Required entries
@@ -119,20 +119,40 @@ pd$read_pickle("data/P1_out.pickle")
 
 ## How to create a JSON file
 
-### From R 
+### With R 
 
-Entries described in [Input file](#input-file) should be added as entries of a list. The following command generate the input file for P1:
+Entries described in [Input file](#input-file) should be added as items of a list. The following command generates the input file for P1:
+
+```
+library(json)
+
+# load input files
+M -> read.csv("data/P1_files/M.csv")
+N -> read.csv("data/P1_files/N.csv")
+barcodes -> c(read.table("data/P1_files/barcodes.txt", sep = "\t"))
+sample -> c(read.table("data/P1_files/class.txt", sep = "\t"))
+
+# create list with required items
+json_P1 <- list(M = M, 
+                N = N,
+                mut_type = c(1,1,1,0),
+                mut_names = c("KRAS", "IDH2", "NRAS","chr8"),
+                cell_barcode = barcodes,
+                bulk_M = list(c(46, 22, 8, 12), c(0,0,0,0)),
+                bulk_N = list(c(54, 78, 92, 16), c(0,0,0,0)),
+                r_cnv = c(0,0,0, 1.5),
+                h_alpha = c(1000,1000,1000, 2),
+                h_beta = c(1000,1000,1000, 100),
+                class_assign = sample,
+                class_names = c("Day0", "Day15"))
+
+```
+
+
+### With Python
+
 
 ```
 
 
 ```
-
-
-```
-
-
-```
-
-
-### From Python
