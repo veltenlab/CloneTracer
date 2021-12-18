@@ -149,11 +149,19 @@ def create_tree_class(input_file, name, mult_samp, cnv_celltype, gpu):
 
         # otherwise set to default values
         else:
+            
+            if entry == "h_alpha":
 
-            h_mapper = {0: 2, 1: 1000, 2: 1}
+                h_mapper = {0: 2, 1: 1000, 2: 1}
 
-            data_svi[entry] = torch.Tensor([h_mapper[mut] for mut in input_data["mut_type"]])  
+                data_svi[entry] = torch.Tensor([h_mapper[mut] for mut in input_data["mut_type"]])  
+                
+            else:
+                
+                h_mapper = {0: 100, 1: 1000, 2: 1}
 
+                data_svi[entry] = torch.Tensor([h_mapper[mut] for mut in input_data["mut_type"]])  
+                
 
     # add additional information for celltype-specific CNV model (if present)
     for entry in ["class_assign", "class_names", "celltype", "celltype_names", "cnv_ct_mean", "cnv_ct_sd", "umapx", "umapy"]:
