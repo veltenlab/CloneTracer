@@ -95,7 +95,44 @@ Two output files are created:
 * *_tree.pickle
 ```
 
+In the \*_out.pickle all necessary information to carry out downstream analysis is stored:
+
+* **trees**: list of selected trees by the model (mutationsxclones)
+* **mutations_tree**: order of mutations in trees
+* **clonal_prob**: list of clonal probabilities for each single cells for the selected trees. Rows correspond to cells and columns to clones.
+* **cell_barcode**: cell barcodes in the same order as rows in clonal_prob matrices.
+* **M**: matrix of mutant read counts.
+* **N**: matrix of reference read counts.
+* **mutations_matrix**: column names of M and N matrices.
+* **ELBO**: ELBO loss for each iteration and tree. In case several trees are selected it can be useful to plot the ELBO for all trees in the last iterations. See [notebooks](notebooks) for detailed analysis and diagnostic plots.
+
+The python class used to run the model is stored in \*_tree.pickle. It can be used to generate diagnostic plots (see [notebooks](notebooks)). 
+
+### Load pickle file into R
+
+Pickle files can be loaded into R using reticulate:
+
+```
+library(reticulate)
+pd$read_pickle("data/P1_out.pickle")
+```
+
 ## How to create a JSON file
 
 ### From R 
+
+Entries described in [Input file](input-file) should be added as entries of a list. The following command generate the input file for P1:
+
+```
+
+
+```
+
+
+```
+
+
+```
+
+
 ### From Python
