@@ -13,3 +13,8 @@ Finally, scripts to design primers targeting nuclear SNVs of interest can be fou
 
 * [Primer design for nuclar SNVs library](primer_design)
 
+## Contact
+
+All scripts were written by [Sergi Beneyto Calabuig](https://www.crg.eu/en/group-members/sergi-beneyto-calabuig) a member of the [Velten lab](https://www.crg.eu/en/programmes-groups/velten-lab) at the Centre for Genomic Regulation (CRG). 
+
+In case of problems or doubts about the scripts please [raise an issue](https://github.com/veltenlab/MutaSeq-v2/issues/new).
