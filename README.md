@@ -11,7 +11,7 @@ Furthermore we have developed a Bayesian model to infer clonal hierarchies from 
 
 Finally, scripts to design primers targeting nuclear SNVs of interest can be found in:
 
-* [Primer design for nuclar SNVs library](primer_design)
+* [Primer design for nuclear SNVs library](primer_design)
 
 ## Contact
 
