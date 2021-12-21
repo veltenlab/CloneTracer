@@ -145,6 +145,9 @@ json_P1 <- list(M = M,
                 h_beta = c(1000,1000,1000, 100),
                 class_assign = sample,
                 class_names = c("Day0", "Day15"))
+                
+# create json file
+write_json(json_P1, path = data/input_P1.json)
 
 ```
 
