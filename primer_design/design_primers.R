@@ -58,7 +58,7 @@ check_required_args <- function(arg, opt, opt_parser) {
 
 # check that all required parameters are provided
 required_args <- c("input_csv", "bam", "name", "read_length","out_directory", "outdir_gene_exp",
-                   "multimodal","cores","gtf_file")
+                   "multimodal","gtf_file")
 
 
 for (i in required_args) {
