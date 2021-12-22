@@ -26,11 +26,11 @@ option_list = list(
   make_option(c("-n", "--name"), type = "character", default = NULL,
               help = "Sample name", 
               metavar = "character"),  
-  make_option(c("-r", "--read_length"), type = "character", default = NULL,
+  make_option(c("-r", "--read_length"), type = "integer", default = NULL,
               help = "Length of read2 in bp", 
               metavar = "character"),  
   make_option(c("-m", "--forced_mutations"), type = "character", default = NULL, 
-              help = "txt file with tab-separated gene names of mutations for which primers will be designed regardless of the expression or distance to end of gene (optional)", 
+              help = "txt file gene names (one per line) of mutations for which primers will be designed regardless of the expression or distance to end of gene (optional)", 
               metavar = "character"),   
   make_option(c("-c", "--cores"), type = "integer", default = 8,
               help = "Number of cores (default 8)", metavar = "character"),
@@ -68,7 +68,7 @@ for (i in required_args) {
 }
 
 #function to generate template sequences based on a particular genomic site
-get_GoT_regions <- function(genomic_sites, contig_list, gene_names, gtf_file, polyAs){
+get_exons <- function(genomic_sites, contig_list, gene_names, gtf_file, polyAs){
   
   # get transcripts
   gtf_genes <- gffReadGR(gtf_file)
@@ -223,7 +223,7 @@ gene_names <- raw_variants$symbol %>% unique()
 gtf_genes <- gffReadGR(opt$gtf_file)
 
 # create out directory
-dir.create(opt$out_directory)
+suppressWarnings(dir.create(opt$out_directory))
 
 # GET GENE EXPRESSION ---------------------------------------------------------------------
 
@@ -254,9 +254,6 @@ gene_expression <- data.frame(symbol = names(counts),
 
 # Subset BAM file for gene targets -----------------------------------------------------------------------------
 
-message("Subsetting BAM file for polyA estimation")
-
-# create BED file with the genes of interest
 # get transcript coordinates for the genes in the variant table
 filtered_transcripts <- gtf_genes[elementMetadata(gtf_genes)[,"gene_name"] %in% gene_names]
 
@@ -270,16 +267,21 @@ mcols(filtered_transcripts) <- NULL
 gen_dir <- paste0(opt$out_directory, "/genomic_files")
 suppressWarnings(dir.create(gen_dir))
 
-# export gene coordinates as BED file
-export(filtered_transcripts, con = paste0(gen_dir, "/full_length_genes.bed"), format = "bed")
-
-# subset BAM file for the genes of interest
-system(paste("samtools view -h -b -L", paste0(gen_dir, "/full_length_genes.bed"), opt$bam, ">", 
-             paste0(gen_dir, "/subsetted.bam")))
-
-# index subset BAM file
-system(paste("samtools index -b", paste0(gen_dir, "/subsetted.bam")))
-
+if(!file.exists(paste0(gen_dir, "/subsetted.bam"))){
+  
+  message("Subsetting BAM file for polyA estimation")
+  
+  # export gene coordinates as BED file
+  export(filtered_transcripts, con = paste0(gen_dir, "/full_length_genes.bed"), format = "bed")
+  
+  # subset BAM file for the genes of interest
+  system(paste("samtools view -h -b -L", paste0(gen_dir, "/full_length_genes.bed"), opt$bam, ">", 
+               paste0(gen_dir, "/subsetted.bam")))
+  
+  # index subset BAM file
+  system(paste("samtools index -b", paste0(gen_dir, "/subsetted.bam")))
+  
+}else{message("Subsetted BAM already present!")}
 
 # DISTANCE TO polyA ---------------------------------------------------------------------
 
@@ -358,7 +360,7 @@ register(MulticoreParam(workers = opt$cores))
 
 # infer polyA sites. With the subsetted BAM it takes a few seconds
 polyA_sites <- inferPolyASites(target_exons,
-                               bam = paste0(opt$out_directory, "/subsetted.bam"), 
+                               bam = paste0(gen_dir, "/subsetted.bam"), 
                                polyA_downstream = 50, by = 1,
                                wdsize = 100, min_cvrg = 100, parallel = TRUE)
 
@@ -529,7 +531,7 @@ print(genes_no_polyA)
 
 # create directory where bed files will be stored
 
-if(file.exists(opt$out_directory) == F){
+if(dir.exists(opt$out_directory) == F){
   
   dir.create(opt$out_directory)
   
@@ -682,7 +684,7 @@ flag_table <- data.frame(flag = flag_vector,
 # mutations to design primers for regardles of expression or distance to polyA (user-defined)
 if(!is.null(opt$forced_mutations)){
   
-  muts <- read_delim(opt$forced_mutations, delim = "\t")
+  muts <- read_delim(opt$forced_mutations, delim = "\n", col_names = F) %>% pull(X1)
   
 }else{muts <- ""}
 
@@ -699,7 +701,7 @@ annotated_variants <- annotated_variants %>% left_join(flag_table) %>%
                           
 # make directory to store primer file
 primer_dir <- paste0(opt$out_directory, "/primers")
-dir.create(primer_dir)
+suppressWarnings(dir.create(primer_dir))
 
 # save the annotated table
 write_csv(annotated_variants, file = paste0(primer_dir, "/annotated_variants.csv"))
@@ -714,7 +716,7 @@ hits_table <- annotated_variants %>% filter(primers == T)
 polyA_bed <- paste0(gen_dir, "/polyA_final_selection.bed")
 
 # compute regions
-regions_list <- get_GoT_regions(genomic_sites = hits_table$POS, contig_list = hits_table$CHROM, 
+regions_list <- get_exons(genomic_sites = hits_table$POS, contig_list = hits_table$CHROM, 
                                 gene_names = hits_table$symbol, gtf_file = opt$gtf_file,
                                 polyAs = polyA_bed)
 
@@ -774,10 +776,10 @@ primers_table <- rbind(primerDataFrame(best_outer_primers) %>% mutate(primer_id 
                        primerDataFrame(best_middle_primers) %>% mutate(primer_id = paste0(primer_id, "_middle")),
                        primerDataFrame(best_inner_primers) %>% mutate(primer_id = paste0(primer_id, "_inner"))) %>%
                         arrange(primer_id) %>% 
-                        mutate(distance_mutation = pcr_product_size-81) %>%
+                        mutate(distance_mutation = pcr_product_size-90) %>%
                         dplyr::rename(symbol = seq_id) %>%
                         left_join(hits_table %>% dplyr::select(symbol, distance_3_end)) %>%
-                        mutate(fragment_length = distance_mutation+distance_3_end+81) %>%
+                        mutate(fragment_length = distance_mutation+distance_3_end+90) %>%
                         dplyr::select(-distance_3_end)
 
 
