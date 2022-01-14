@@ -49,6 +49,14 @@ The script has the following command-line arguments:
 * `-c --cores <integer>`: number of cores to use. 
 * `-m --forced_mutations <filepath>`: text file with gene names (one per line) for which primers will be designed regardless of the expression of the gene or the distance of the mutation to the polyA.
 
+#### Run workflow
+
+The following command would run the pipeline for P1 of the manuscript:
+
+```
+Rscript design_primers.R -i example_P1/input_variants.csv -b path/to/cellranger/outs -g path/to/gtf_file -n P1 -r 120 -d example_P1 -t TRUE -c 8 -m example_P1/muts.txt
+```
+
 ## Output
 
 The script produces 2 main output files
