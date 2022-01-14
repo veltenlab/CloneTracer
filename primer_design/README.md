@@ -1,18 +1,18 @@
 # Description
 
-The R script [design_primers.R](design_primers) is used to design primers for the amplification of specific nuclear SNVs from 3' 10x scRNAseq cDNA libraries. For eac mutation it generates outer, middle and staggered inner primers which can be used following the protocol described in out MutaSeq v2 manuscript.
+The R script [design_primers.R](design_primers) is used to design primers for the amplification of specific nuclear SNVs from 3' 10x scRNAseq cDNA libraries. For each mutation it generates outer, middle and staggered inner primers which can be used following the protocol described in our MutaSeq v2 manuscript.
 
 ## Dependencies 
 
 In order to run the script, samtools is required in the environment as well as the following R packages: tidyverse, GenomicRanges, GenomicFeatures, Seurat, BiocParallel, rtracklayer, BSgenome, TAPseq, ballgown, purrr, TxDb.Hsapiens.UCSC.hg38.knownGene, mygene, BSgenome.Hsapiens.UCSC.hg38.
 
-## Design primers
+## Primer design
 
 ### Considerations
 
-There are 2 main limitations when it comes to genotyping nuclear SNVs: the expression of the gene and the distance of the mutation to the polyA tail (end of mRNA). By default we select mutations that are < 1.5kb away from the estimated polyA and genes which are expressed in the sample of interest (mean raw counts/cell > 0.2).
+There are 2 main limitations when it comes to genotyping nuclear SNVs: the expression of the gene and the distance of the mutation to the polyA tail (3' end of mRNA). By default we select mutations that are < 1.5kb away from the estimated polyA and genes which are expressed in the sample of interest (mean raw counts/cell > 0.2).
 
-From our experience mutations in genes which have lower expression is highly inefficient (only a low proportion of cells is covered). When it comes to mutations further away from the polyA tail, the main issue is the length of the resulting fragments. We have noticed that longer fragments (>1kb) are sequenced less efficiently than shorter ones in illumina sequencers. Furthermore, amplifying very long fragments can be problematic when carrying out the nested PCRs.
+From our experience, amplification of mutations in genes which have lower expression is highly inefficient (only a low proportion of cells is covered). When it comes to mutations further away from the polyA tail, the main issue is the length of the resulting fragments. We have noticed that longer fragments (>1kb) are sequenced less efficiently than shorter ones in illumina sequencers. Furthermore, amplifying very long fragments can be problematic when carrying out the nested PCRs.
 
 ### Input files
 
@@ -62,4 +62,4 @@ The former contains the name of the primers as well as the sequence. The latter 
 
 The script also generates several bed files stored in the `genomic_files` and `primers` directories which can be loaded into a genome browser to confirm the correct orientation and position of the primers. 
 
-In our experience visualising these files is very helpful particularly in instances where the initial PCR reactions do not seem to work.
+In our experience visualising these files is very helpful particularly in instances where the initial PCR reactions do not seem to work (e.g. no specific peak is found in bioanalyser traces).
