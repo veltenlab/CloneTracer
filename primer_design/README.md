@@ -8,12 +8,6 @@ In order to run the script, samtools is required in the environment as well as t
 
 ## Primer design
 
-### Considerations
-
-There are 2 main limitations when it comes to genotyping nuclear SNVs: the expression of the gene and the distance of the mutation to the polyA tail (3' end of mRNA). By default we select mutations that are < 1.5kb away from the estimated polyA and genes which are expressed in the sample of interest (mean raw counts/cell > 0.2).
-
-From our experience, amplification of mutations in genes which have lower expression is highly inefficient (only a low proportion of cells is covered). When it comes to mutations further away from the polyA tail, the main issue is the length of the resulting fragments. We have noticed that longer fragments (>1kb) are sequenced less efficiently than shorter ones in illumina sequencers. Furthermore, amplifying very long fragments can be problematic when carrying out the nested PCRs.
-
 ### Input files
 
 There are 3 main input files required to run the script:
@@ -56,6 +50,11 @@ The following command would run the pipeline for P1 of the manuscript:
 ```
 Rscript design_primers.R -i example_P1/input_variants.csv -b example_P1/genomic_files/subsetted.bam -u path/to/cellranger/outs -g path/to/gtf_file -n P1 -r 120 -d example_P1 -t TRUE -c 8 -m example_P1/muts.txt
 ```
+### Considerations
+
+There are 2 main limitations when it comes to genotyping nuclear SNVs: the expression of the gene and the distance of the mutation to the polyA tail (3' end of mRNA). By default we select mutations that are < 1.5kb away from the estimated polyA and genes which are expressed in the sample of interest (mean raw counts/cell > 0.2).
+
+From our experience, amplification of mutations in genes which have lower expression is highly inefficient (only a low proportion of cells is covered). When it comes to mutations further away from the polyA tail, the main issue is the length of the resulting fragments. We have noticed that longer fragments (>1kb) are sequenced less efficiently than shorter ones in illumina sequencers. Furthermore, amplifying very long fragments can be problematic when carrying out the nested PCRs.
 
 ## Output
 
