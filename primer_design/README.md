@@ -6,6 +6,14 @@ The R script [design_primers.R](design_primers) is used to design primers for th
 
 In order to run the script, samtools is required in the environment as well as the following R packages: tidyverse, GenomicRanges, GenomicFeatures, Seurat, BiocParallel, rtracklayer, BSgenome, TAPseq, ballgown, purrr, TxDb.Hsapiens.UCSC.hg38.knownGene, mygene, BSgenome.Hsapiens.UCSC.hg38.
 
+We provide a conda environment with all dependencies installed:
+
+```
+git clone https://github.com/veltenlab/MutaSeq-v2
+cd primer_design
+conda env create -f envs/primer_design.yml
+```
+
 # Primer design
 
 ## Input files
