@@ -2,13 +2,13 @@
 
 The R script [design_primers.R](design_primers) is used to design primers for the amplification of specific nuclear SNVs from 3' 10x scRNAseq cDNA libraries. For each mutation it generates outer, middle and staggered inner primers which can be used following the protocol described in our MutaSeq v2 manuscript.
 
-## Dependencies 
+# Dependencies 
 
 In order to run the script, samtools is required in the environment as well as the following R packages: tidyverse, GenomicRanges, GenomicFeatures, Seurat, BiocParallel, rtracklayer, BSgenome, TAPseq, ballgown, purrr, TxDb.Hsapiens.UCSC.hg38.knownGene, mygene, BSgenome.Hsapiens.UCSC.hg38.
 
-## Primer design
+# Primer design
 
-### Input files
+## Input files
 
 There are 3 main input files required to run the script:
 
@@ -23,11 +23,11 @@ There are 3 main input files required to run the script:
 * BAM file from 3' 10x scRNAseq of the same sample
 * [gtf file from ensembl](http://ftp.ensembl.org/pub/release-100/gtf/homo_sapiens/Homo_sapiens.GRCh38.100.chr.gtf.gz).
 
-### Command-line execution
+## Command-line execution
 
 The script has the following command-line arguments:
 
-#### Required
+### Required
 
 * `-i, --input <filepath>`: input csv file with the format described above
 * `-b --bam <filepath>`: bam file from 3' 10x genomics
@@ -39,25 +39,20 @@ The script has the following command-line arguments:
 * `-d --out_directory <directory>`: directory where output files will be written
 * `-t --multimodal <logical>`: TRUE when additional modalities where measured besided RNA (e.g. surface antigens, ATAC...)
 
-#### Optional
+### Optional
 
 * `-c --cores <integer>`: number of cores to use. 
 * `-m --forced_mutations <filepath>`: text file with gene names (one per line) for which primers will be designed regardless of the expression of the gene or the distance of the mutation to the polyA.
 
-#### Run workflow
+### Run workflow
 
 The following command would run the pipeline for P1 of the manuscript:
 
 ```
 Rscript design_primers.R -i example_P1/input_variants.csv -b example_P1/genomic_files/subsetted.bam -u path/to/cellranger/outs -g path/to/gtf_file -n P1 -r 120 -d example_P1 -t TRUE -c 8 -m example_P1/muts.txt
 ```
-### Considerations
 
-There are 2 main limitations when it comes to genotyping nuclear SNVs: the expression of the gene and the distance of the mutation to the polyA tail (3' end of mRNA). By default we select mutations that are < 1.5kb away from the estimated polyA and genes which are expressed in the sample of interest (mean raw counts/cell > 0.2).
-
-From our experience, amplification of mutations in genes which have lower expression is highly inefficient (only a low proportion of cells is covered). When it comes to mutations further away from the polyA tail, the main issue is the length of the resulting fragments. We have noticed that longer fragments (>1kb) are sequenced less efficiently than shorter ones in illumina sequencers. Furthermore, amplifying very long fragments can be problematic when carrying out the nested PCRs.
-
-## Output
+# Output
 
 The script produces 2 main output files
 
@@ -71,3 +66,9 @@ The former contains the name of the primers as well as the sequence. The latter 
 The script also generates several bed files stored in the `genomic_files` and `primers` directories which can be loaded into a genome browser to confirm the correct orientation and position of the primers. 
 
 In our experience visualising these files is very helpful particularly in instances where the initial PCR reactions do not seem to work (e.g. no specific peak is found in bioanalyser traces).
+
+# Considerations
+
+There are 2 main limitations when it comes to genotyping nuclear SNVs: the expression of the gene and the distance of the mutation to the polyA tail (3' end of mRNA). By default we select mutations that are < 1.5kb away from the estimated polyA and genes which are expressed in the sample of interest (mean raw counts/cell > 0.2).
+
+From our experience, amplification of mutations in genes which have lower expression is highly inefficient (only a low proportion of cells is covered). When it comes to mutations further away from the polyA tail, the main issue is the length of the resulting fragments. We have noticed that longer fragments (>1kb) are sequenced less efficiently than shorter ones in illumina sequencers. Furthermore, amplifying very long fragments can be problematic when carrying out the nested PCRs.
