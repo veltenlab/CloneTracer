@@ -25,7 +25,7 @@ conda env create -f envs/clonal_inference.yml
 ```
 ## Input file
 
-The model requires a config file in JSON format (see below how to create a JSON file in [R](#with-r) or [python](#with-python), add links to headers). Input files for all patients 
+The model requires a config file in JSON format (see below how to create a JSON file in [R](#with-r), add links to headers). Input files for all patients 
 in the manuscript are present in [input data](data).
 
 ### Required entries
@@ -148,14 +148,5 @@ json_P1 <- list(M = M,
                 
 # create json file
 write_json(json_P1, path = data/input_P1.json)
-
-```
-
-
-### With Python
-
-
-```
-
 
 ```
