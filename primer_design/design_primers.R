@@ -39,6 +39,7 @@ library(TxDb.Hsapiens.UCSC.hg38.knownGene)
 library(BSgenome.Hsapiens.UCSC.hg38)
 library(BSgenome)
 library(mygene)
+library(parallel)
 
 # create arguments list
 option_list = list(

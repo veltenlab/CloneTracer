@@ -1,6 +1,6 @@
 ##gff-version 2
-##source-version rtracklayer 1.50.0
-##date 2021-12-22
+##source-version rtracklayer 1.54.0
+##date 2022-01-16
 chr15	ensembl_havana	exon	90083045	90084353	.	-	.	gene_id "ENSG00000182054"; gene_version "10"; gene_name "IDH2"; gene_source "ensembl_havana"; gene_biotype "protein_coding"; transcript_id "ENST00000330062"; transcript_version "8"; transcript_name "IDH2-201"; transcript_source "ensembl_havana"; transcript_biotype "protein_coding"; tag "basic"; transcript_support_level "1 (assigned to previous version 7)"; exon_number "11"; exon_id "ENSE00001329680"; exon_version "5"; ccds_id "CCDS10359"; ID "IDH2"
 chr15	ensembl_havana	exon	90084816	90084908	.	-	.	gene_id "ENSG00000182054"; gene_version "10"; gene_name "IDH2"; gene_source "ensembl_havana"; gene_biotype "protein_coding"; transcript_id "ENST00000330062"; transcript_version "8"; transcript_name "IDH2-201"; transcript_source "ensembl_havana"; transcript_biotype "protein_coding"; tag "basic"; transcript_support_level "1 (assigned to previous version 7)"; exon_number "10"; exon_id "ENSE00003623798"; exon_version "1"; ccds_id "CCDS10359"; ID "IDH2"
 chr15	ensembl_havana	exon	90085001	90085098	.	-	.	gene_id "ENSG00000182054"; gene_version "10"; gene_name "IDH2"; gene_source "ensembl_havana"; gene_biotype "protein_coding"; transcript_id "ENST00000330062"; transcript_version "8"; transcript_name "IDH2-201"; transcript_source "ensembl_havana"; transcript_biotype "protein_coding"; tag "basic"; transcript_support_level "1 (assigned to previous version 7)"; exon_number "9"; exon_id "ENSE00003679377"; exon_version "1"; ccds_id "CCDS10359"; ID "IDH2"
