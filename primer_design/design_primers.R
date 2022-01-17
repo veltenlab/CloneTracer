@@ -5,18 +5,18 @@
 # parse command line arguments ---------------------------------------------------------------------
 
 # check if required packages are installed 
-
-for (i in c("optparse","BiocManager", "tidyverse", "GenomicRanges", "GenomicFeatures", "Seurat", 
-            "BiocParallel", "rtracklayer", "BSgenome",
+message("Checking if required packages are installed")
+for (i in c("optparse","BiocManager", "GenomicRanges", "GenomicFeatures", "Seurat", 
+            "BiocParallel", "rtracklayer", "BSgenome", "readxl",
            "TAPseq", "ballgown", "purrr", "TxDb.Hsapiens.UCSC.hg38.knownGene", "BSgenome.Hsapiens.UCSC.hg38",
-           "BSgenome", "mygene")){
+           "BSgenome", "mygene", "tidyverse")){
   
   if(!requireNamespace(i, quietly = TRUE)){
   
     
-    if(i %in% c("optparse", "BiocManager", "tidyverse", "purrr", "Seurat")){
+    if(i %in% c("optparse", "BiocManager", "tidyverse", "purrr", "Seurat", "readxl")){
       
-      install.packages(i, repos="http://cran.us.r-project.org")
+      install.packages(i, repos="https://ftp.fau.de/cran/")
       
     }else{BiocManager::install(i)}
     
