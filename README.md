@@ -4,7 +4,7 @@ CloneTracer is a methdology to add clonal resolution to scRNAseq datasets using 
 
 * [Clonal inference](clonal_inference)
 
-In CloneTracker, coverage of nuclear SNVs is increased through nested PCRs using mutation-specific primers. Scripts to design primers targeting nuclear SNVs of interest can be found in:
+In CloneTracer, coverage of nuclear SNVs is increased through nested PCRs using mutation-specific primers. Scripts to design primers targeting nuclear SNVs of interest can be found in:
 
 * [Primer design for nuclear SNVs library](primer_design)
 
