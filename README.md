@@ -1,6 +1,6 @@
-# CloneTracker
+# CloneTracer
 
-CloneTracker is a methdology to add clonal resolution to scRNAseq datasets using nuclear and mitochondrial SNVs as well as CNVs. We have developed a Bayesian model which infers the clonal hierachy of the mutations in the sample and probabilistically assigns cells to clones. All required scripts and detailed explanation on how to implement the model can be found in:
+CloneTracer is a methdology to add clonal resolution to scRNAseq datasets using nuclear and mitochondrial SNVs as well as CNVs. We have developed a Bayesian model which infers the clonal hierachy of the mutations in the sample and probabilistically assigns cells to clones. All required scripts and detailed explanation on how to implement the model can be found in:
 
 * [Clonal inference](clonal_inference)
 
