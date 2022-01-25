@@ -1,6 +1,6 @@
 # Description
 
-The R script [design_primers.R](design_primers) is used to design primers for the amplification of specific nuclear SNVs from 3' 10x scRNAseq cDNA libraries. For each mutation it generates outer, middle and staggered inner primers which can be used following the protocol described in our CloneTracker manuscript.
+The R script [design_primers.R](design_primers) is used to design primers for the amplification of specific nuclear SNVs from 3' 10x scRNAseq cDNA libraries. For each mutation it generates outer, middle and staggered inner primers which can be used following the protocol described in our CloneTracer manuscript.
 
 # Dependencies 
 
@@ -9,7 +9,7 @@ In order to run the script, samtools is required in the environment as well as t
 We provide a conda environment with all dependencies installed:
 
 ```
-git clone https://github.com/veltenlab/CloneTracker
+git clone https://github.com/veltenlab/CloneTracer
 cd primer_design
 conda env create -f envs/primer_design.yml
 ```
