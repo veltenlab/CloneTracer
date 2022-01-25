@@ -1,10 +1,10 @@
-# MutaSeq v2
+# CloneTracker
 
-MutaSeq v2 is a methdology to add clonal resolution to scRNAseq datasets using nuclear and mitochondrial SNVs as well as CNVs. We have developed a Bayesian model which infers the clonal hierachy of the mutations in the sample and probabilistically assigns cells to clones. All required scripts and detailed explanation on how to implement the model can be found in:
+CloneTracker is a methdology to add clonal resolution to scRNAseq datasets using nuclear and mitochondrial SNVs as well as CNVs. We have developed a Bayesian model which infers the clonal hierachy of the mutations in the sample and probabilistically assigns cells to clones. All required scripts and detailed explanation on how to implement the model can be found in:
 
 * [Clonal inference](clonal_inference)
 
-In MutaSeq v2, coverage of nuclear SNVs is increased through nested PCRs using mutation-specific primers. Scripts to design primers targeting nuclear SNVs of interest can be found in:
+In CloneTracker, coverage of nuclear SNVs is increased through nested PCRs using mutation-specific primers. Scripts to design primers targeting nuclear SNVs of interest can be found in:
 
 * [Primer design for nuclear SNVs library](primer_design)
 
