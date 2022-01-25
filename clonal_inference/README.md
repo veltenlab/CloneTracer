@@ -19,7 +19,7 @@ The following python libraries are required to run the model: pyro, pytorch, pic
 We have included a yml which contains all required packages to run the model. A conda environment can be created from it to run the model:
 
 ```
-git clone https://github.com/veltenlab/MutaSeq-v2
+git clone https://github.com/veltenlab/CloneTracker
 cd clonal_inference
 conda env create -f envs/clonal_inference.yml
 ```
