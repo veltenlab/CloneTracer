@@ -22,7 +22,7 @@ There are 3 main input files required to run the script:
 
 * csv file with the following format:
 
-| Symbol      | CHROM  | POS
+| symbol      | CHROM  | POS
 | ----------- | ------ |-----------
 | KRAS        | chr12  | 25245350
 | NRAS        | chr1   | 114713909
