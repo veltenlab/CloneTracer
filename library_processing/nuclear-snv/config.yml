@@ -1,21 +1,28 @@
-## mitochondrial library parameters ------------------------------------------------------
+## mutation library parameters ------------------------------------------------------
 
 # patient sample ids
 patient_ids:
-  [P266_TAPseq, P266_spiked, P80, AKLW2, AKLA1b, AKLA2, AKLM1, AKLM2, AKLM3, AKLK1, AKLK2, P186_high, P186_low, jurkatK562, P361, P19003-11, P127, P130, P210230F, P221, P270, P327, P357, P362, P364, P379, P395, P107, P183]
+  [P266_TAPseq, P266_spiked, AKLK1, AKLK2, AKLW1, AKLW2, AKLA1b, AKLA2, P80, P324, P186, P361, P19003_1, P221, P270]
+
+# estimated number of cells per sample, for which dge data should be extracted.
+cell_numbers:
+  AKLW1: 8000
 
 # cell and umi barcode base positions in barcode reads for each sample. the first element of the
 # array is the cell barcode range, while the second is the UMI barcode range.
 bc_structure:
   10x_v3: [1-16, 17-28]
 
+
 # reference files for alignment and annotation
 genome_references:
-  genome_dir: ../../../sbeneyto/alignment_references/chrM/GRCh38
+  genome_dir: ../../../sbeneyto/alignment_references/GRCh38/genomeDir
   gtf: ../../../sbeneyto/alignment_references/GRCh38/Homo_sapiens.GRCh38.100.chr.gtf
-  fasta: ../../../sbeneyto/alignment_references/chrM/GRCh38/Homo_sapiens.GRCh38.dna.chromosome.MT.fa
-  dict: ../../../sbeneyto/alignment_references/chrM/GRCh38/Homo_sapiens.GRCh38.dna.chromosome.MT.dict
+  fasta: ../../../sbeneyto/alignment_references/GRCh38/Homo_sapiens.GRCh38.dna.primary_assembly.fasta
+  dict: ../../../sbeneyto/alignment_references/GRCh38/Homo_sapiens.GRCh38.dna.primary_assembly.dict
   refFlat: ../../../sbeneyto/alignment_references/GRCh38/Homo_sapiens.GRCh38.dna.primary_assembly.refFlat
+  bwa_genome: ../../../sbeneyto/alignment_references/hg38/hg38.fa
+
 
 # parameters read alignment ------------------------------------------------------------------------------
 tag_cell_barcodes:
@@ -36,6 +43,7 @@ trim_polyA:
   num_bases: 6
 
 star_align:
+  threads_split_bams: 1
   threads_comp_bam: 8
 
 bead_synthesis_error:
@@ -48,16 +56,16 @@ bead_synthesis_error:
 reads_per_cell:
   read_quality: 10
 
+# params count_table
+count_table:
+  missmatch_ratio: 0.4
+  min_umis_mutant: 1
+
 # params read deduplicationn ------------------------------------------------------------
 read_deduplication:
   max_open_files: 10000
   cores_split_files: 8
   umi_errors: 0
-  min_reads_umi: 1
-  star_threads: 8
+  min_reads_umi: 2
+  star_threads: 1
   cores_merge_bam: 8
-
-# params count_table
-count_table:
-  missmatch_ratio: 0.2
-  cores: 8

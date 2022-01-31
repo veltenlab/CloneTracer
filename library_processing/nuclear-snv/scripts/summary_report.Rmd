@@ -1,0 +1,362 @@
+---
+title: "Mutation library report"
+author: "Sergi Beneyto-Calabuig"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+params:
+  rmd: "summary_report.Rmd"
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: false
+    highlight: pygments 
+editor_options: 
+  chunk_output_type: console
+---
+
+
+<br>
+
+```{r include=FALSE, eval=FALSE}
+
+setwd("~/cluster/project/AML/nuclear_mutations/")
+
+directory <- getwd()
+
+sample <- "P19003_1"
+
+# read with targeted variants information
+variants <- read_csv(file.path(directory, "data/P19003_1/mutation_counts/amplified_variants.csv"))
+
+# read count table
+count_table <- readRDS(file.path(directory, "data/P19003_1/mutation_counts/count_table/P19003_1_count_table.rds"))
+```
+
+
+```{r, include=FALSE}
+
+# set path to package library
+.libPaths("/nfs/users2/lvelten/sbeneyto/.conda/envs/exome/lib/R/library")
+
+
+# set global chunk settings
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+
+
+
+#load the required packages
+library(tidyverse)
+library(ggplot2)
+library(patchwork)
+library(GenomicRanges)
+library(vcfR)
+library(RColorBrewer)
+library(viridis)
+library(DT)
+library(SummarizedExperiment)
+library(here)
+library(plotly)
+snakemake@source("themes_report.R")
+
+
+# get the directory where Snakefile is stored
+directory <- gsub("/[^/]*$", "", snakemake@scriptdir)
+
+
+# directory where plots will be exported
+plots_dir <- file.path(directory, "results/summary_reports",snakemake@wildcards$patient, "plots")
+
+
+# create directory to store plots
+dir.create(plots_dir, showWarnings = F)
+
+
+# the name of the sample from which the report is made
+sample <- snakemake@wildcards$patient
+
+
+# read with targeted variants information
+variants <- read_csv(file.path(directory, snakemake@input$variants))
+
+# read count table
+count_table <- readRDS(file.path(directory, snakemake@input$count_table))
+
+
+# read table with alignment stats
+align_stats <- read_csv(file.path(directory, snakemake@input$align_stats), 
+                        col_names = c("feature", "nreads")) %>% 
+                mutate(sample = sample,
+                       percentage = nreads/sum(nreads)*100)
+
+
+```
+
+
+This is the summary report for the nuclear mutation library of sample **`r snakemake@wildcards$patient`**.
+
+In this patient the following genes were targeted **`r variants$symbol`**.
+
+# Alignment statistics
+
+## Target genes combined
+
+Here the proportion of reads aligning to the targeted genes is shown as well as to other genomic areas such as exons, non-coding regions of genes (genes), mitochondria and non-coding regions (other). Only reads from cell barcodes present in cell ranger output are included. The full list of barcodes can be found in `r snakemake@input$barcodes`.
+
+```{r}
+
+# sum all reads from targeted genes
+align_stats_sum <- align_stats %>% mutate(group = ifelse(feature %in% variants$symbol, "targeted_genes", feature)) %>% 
+                      group_by(group) %>% 
+                      dplyr::summarise(nreads = sum(nreads), percentage = sum(percentage))
+
+# order from higher to lower 
+order_align_stats <- align_stats %>% arrange(percentage) %>% pull(feature)
+
+
+# change the levels of feature names so that percentages fit well in the bar plot
+align_stats <- align_stats %>% mutate(feature = factor(feature, levels = order_align_stats))
+
+
+align_locations_plot <- ggplot(align_stats_sum, aes(x = sample, y = nreads, fill = group))+
+                            geom_bar(stat = "identity", position = "stack") +
+                            theme_classic() +
+                            scale_y_continuous(expand = c(0,1)) +
+                            theme_plots_alignment +
+                            ylab("Number of reads") +
+                            geom_text(data = align_stats_sum %>% filter(percentage > 5),
+                                      aes(label = round(percentage, 1)), 
+                                      size = 4, colour = "white", position =
+                                        position_stack(vjust = 0.5))
+
+# save plot 
+ggsave(align_locations_plot + theme_plots_alignment, 
+       filename = file.path(plots_dir, "alignment_stats.png"),
+       height = 7, width = 7)
+
+
+align_locations_plot
+
+```
+ 
+***
+
+## Gene-specific plots
+
+When it comes to looking at the the proportion of reads that align to each of the targeted genes two factors are important:
+
+* The expression of the gene
+* The distance of the mutation to the polyA.
+
+The higher the expression the higher the coverage and also the number of covered cells. The closer the distance to the polyA the smaller the amplicon is and therefore the more efficient it gets sequenced. 
+
+### Metadata table
+
+For each of the targeted genomic sites the table shows the mean number of raw counts in Anne's samples together with the estimated distance of the mutation to the polyA.
+
+<br>
+
+```{r}
+
+datatable(variants)
+
+```
+
+***
+
+### Alignment plot
+
+Here I show the proportion of reads aligning to each of the targeted genes.
+
+<br>
+
+```{r}
+
+# compute percentage only taking into account reads that overlap with the genes of interest
+align_status_genes <- align_stats %>% filter(feature %in% variants$symbol) %>% 
+                        mutate(percentage = nreads/sum(nreads)*100)
+
+
+# determine the order based on the number of reads
+order_genes <- align_status_genes %>% arrange(percentage) %>% 
+                  pull(feature)
+
+# apply the order to features so that percentage labels are place correctly in the plot
+align_status_genes <- align_status_genes %>% 
+                        mutate(feature = factor(feature, levels = order_genes))
+
+# make alignment plot for targeted genes
+align_genes_plot <- ggplot(align_status_genes, aes(x = sample, y = nreads, fill = feature))+
+                            geom_bar(stat = "identity", position = "stack") +
+                            theme_classic() +
+                            scale_y_continuous(expand = c(0,1)) +
+                            theme_plots_alignment +
+                            ylab("Number of reads") +
+                            geom_text(data = align_status_genes %>% filter(percentage > 5),
+                                      aes(label = round(percentage, 1)), 
+                                      size = 4, colour = "white", position =
+                                        position_stack(vjust = 0.5))
+
+# save plot 
+ggsave(align_genes_plot + theme_plots_alignment_pdf, 
+       filename = file.path(plots_dir, "alignment_genes.png"),
+       height = 7, width = 7)
+
+
+align_genes_plot
+
+
+```
+
+***
+
+# Mutational status
+
+In this plot I show the proportion of reference, mutant and dropout cell for each mutation of interest. Labels indicate the absolute number of cell.
+
+<br>
+
+```{r}
+
+if(sample == "P186"){
+  
+  sample_seurat <- "P186_high"
+  
+}else if(sample == "P19003_1"){
+  
+  sample_seurat <- "P19003-11"
+  
+}else{sample_seurat <- sample}
+
+# if Seurat with high-quality cells exists only show those cells in downstream plots
+if(file.exists(file.path(directory, "../gene_expression/data", sample_seurat, "seurat/seurat_projected.rds"))){
+  
+  barcodes <- colnames(readRDS(file.path(directory, "../gene_expression/data", sample_seurat, "seurat/seurat_projected.rds")))
+  
+  seurat <- T
+  
+}else{barcodes <- count_table$cell_barcode %>% unique()
+      seurat <- F}
+
+# cretate the table with aggreagated values based on gene and mutational status
+status_table <- count_table %>% filter(cell_barcode %in% barcodes) %>%  
+                  group_by(symbol, status) %>% 
+                  dplyr::summarise(count = n(), coverage = mean(umis, na.rm = T)) %>% 
+                  mutate(coverage = ifelse(is.nan(coverage), 0, coverage)) %>% 
+                  ungroup() %>% group_by(symbol) %>% 
+                  mutate(percentage = count/sum(count)*100)
+
+
+# bar plot
+mutation_status_plot <- ggplot(status_table,
+                               aes(x = symbol, y = percentage, fill = status, label = count))+
+                               geom_bar(stat = "identity", position = "stack") +
+                               theme_plots_alignment +
+                               theme(axis.line.x = element_line(),
+                                     legend.position = "bottom",
+                                     legend.text = element_text(size = 12),
+                                     axis.text.x = element_text(size = 14)) +
+                               scale_y_continuous(expand = c(0,0)) +
+                               ylab("Percentage of cells (%)") +
+                               scale_fill_manual(values = c("reference" = "blue",
+                                                            "mutant" = "red",
+                                                            "dropout" = "gray")) +
+                            geom_text(data = status_table %>% filter(percentage > 5),
+                                      aes(label = count),
+                                      size = 4, colour = "white", position =
+                                        position_stack(vjust = 0.5))
+
+
+#save plot
+ggsave(mutation_status_plot, 
+       filename = file.path(plots_dir, "mutation_status.png"),
+       height = 7, width = 7)
+
+
+mutation_status_plot
+
+```
+
+***
+
+# Coverage 
+
+In this plot I show the number of UMIs detect for each cell which correspond to the coverage. In the y axis the average number of reads supporting each UMI is shown. 
+
+<br>
+
+```{r}
+
+# box plot showing the number of UMIs coloured by mutation status
+scatter_raw_umis <- ggplot(count_table %>% filter(status != "dropout"),
+                            aes(x = umis, y = avg_coverage))+
+                            geom_point(aes(color = status)) +
+                            scale_color_manual(values = c("red", "blue")) +
+                            scale_y_log10(breaks = c(0,2, 10, 100, 1000)) +
+                            scale_x_log10() +
+                            theme_classic() +
+                            ylab("Average reads per UMI") +
+                            xlab("Number of UMIs") +
+                            theme_plots_alignment +
+                            theme(axis.line.x = element_line(),
+                                  legend.title = element_blank(),
+                                  legend.text = element_text(size = 17),
+                                  legend.position = "bottom",
+                                  strip.text = element_text(size = 14)) +
+                            guides(color = guide_legend(override.aes = list(size = 4.5)))+
+                            facet_wrap(vars(symbol))
+
+# save plot
+ggsave(scatter_raw_umis, 
+       filename = file.path(plots_dir, "numis_raw_reads.png"),
+       height = 7, width = 7)
+
+
+scatter_raw_umis
+
+```
+
+
+***
+
+# UMAP of variants
+
+Here I show the mutant and reference cells in the projected UMAP. A cell is labelled as mutant if at least one mutant UMI is detected.
+
+<br>
+
+```{r, include=seurat, eval=seurat}
+
+umap_table <- count_table %>% dplyr::select(cell_barcode, symbol, status) %>% 
+                left_join(readRDS(file.path(directory, "../gene_expression/data", 
+                                            sample_seurat, 
+                                            "seurat/seurat_projected.rds"))@meta.data %>% rownames_to_column(var = "cell_barcode"))
+
+# make UMAP with Variants
+umap_variants <-  ggplot(umap_table,
+                         aes(x = umapx, y = umapy, color = factor(status, levels = c("dropout", "reference", "mutant")))) + 
+                          geom_point(data = umap_table %>% filter(status == "dropout"), size = 0.75) +
+                          geom_point(data = umap_table %>% filter(status != "dropout"), size = 1) +
+                          theme_classic() +
+                          scale_colour_manual(values = setNames(c("gray", bulls_red, dallas_blue, bulls_red, bulls_red),
+                                                       c("dropout", "mutant", "reference", "trisomy", "deletion"))) + 
+                          theme(axis.title = element_text(size = 12),
+                                axis.text = element_text(size = 12, color = "black"),
+                                legend.title = element_blank(),
+                                plot.title = element_text(size = 22, hjust = 0.5),
+                                legend.text = element_text(size = 12),
+                                legend.position = "bottom",
+                                strip.text = element_text(size =12)) +
+                          guides(color = guide_legend(override.aes = list(size = 1.5))) +
+                          facet_wrap(vars(symbol))
+  
+umap_variants
+
+```
+
+
+# Source
+* <a download="summary_report.Rmd" href="`r base64enc::dataURI(file = params$rmd, mime = 'text/rmd',
+    encoding = 'base64')`">R Markdown source file (to produce this document)</a>

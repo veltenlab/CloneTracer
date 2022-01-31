@@ -1,4 +1,4 @@
-name: clonetracer
+name: mGATK
 channels:
   - conda-forge
   - bioconda
@@ -25,10 +25,9 @@ dependencies:
   - bwidget=1.9.14=ha770c72_0
   - bzip2=1.0.8=h7f98852_4
   - c-ares=1.17.1=h7f98852_1
-  - ca-certificates=2021.10.8=ha878542_0
+  - ca-certificates=2020.12.5=ha878542_0
   - cairo=1.16.0=h6cf1ce9_1008
-  - certifi=2021.10.8=py37h89c1867_0
-  - cudatoolkit=10.1.243=h036e899_8
+  - certifi=2020.12.5=py37h89c1867_1
   - curl=7.76.0=h979ede3_0
   - cutadapt=3.4=py37h73a75cf_1
   - cycler=0.10.0=py_2
@@ -52,7 +51,6 @@ dependencies:
   - harfbuzz=2.8.0=h83ec7ef_1
   - htseq=0.13.5=py37h9c5868f_1
   - icu=68.1=h58526e2_0
-  - intel-openmp=2021.3.0=h06a4308_3350
   - isa-l=2.30.0=ha770c72_4
   - jpeg=9d=h36c2ea0_0
   - kernel-headers_linux-64=2.6.32=h77966d4_13
@@ -88,9 +86,8 @@ dependencies:
   - libxml2=2.9.10=h72842e0_3
   - lz4-c=1.9.3=h9c3ff4c_0
   - make=4.3=hd18ef5c_1
-  - mkl=2021.3.0=h06a4308_520
+  - matplotlib-base=3.4.1=py37hdd32ed1_0
   - ncurses=6.2=h58526e2_4
-  - ninja=1.10.2=h4bd325d_0
   - olefile=0.46=pyh9f0ad1d_1
   - openjdk=11.0.9.1=h5cc2fde_1
   - openjpeg=2.4.0=hf7af979_0
@@ -250,12 +247,10 @@ dependencies:
   - pip:
     - amply==0.1.4
     - appdirs==1.4.4
-    - arviz==0.11.4
     - attrs==20.3.0
     - bbmix==0.2.0
     - biopython==1.78
     - cellsnp==0.3.2
-    - cftime==1.5.1
     - chardet==4.0.0
     - click==7.1.2
     - configargparse==1.2.3
@@ -275,9 +270,7 @@ dependencies:
     - mgatk==0.5.9
     - mquad==0.1.1
     - nbformat==5.0.8
-    - netcdf4==1.5.7
     - numpy==1.19.4
-    - opt-einsum==3.3.0
     - optparse-pretty==0.1.1
     - packaging==20.8
     - pandas==1.2.3
@@ -285,8 +278,6 @@ dependencies:
     - psutil==5.8.0
     - pulp==2.4
     - py==1.10.0
-    - pyro-api==0.1.2
-    - pyro-ppl==1.7.0
     - pyrsistent==0.17.3
     - pytest==6.2.1
     - pytz==2021.1
@@ -305,13 +296,11 @@ dependencies:
     - threadpoolctl==2.1.0
     - toml==0.10.2
     - toposort==1.6
-    - torch==1.9.1
-    - tqdm==4.62.3
     - traitlets==5.0.5
     - typing-extensions==3.7.4.3
     - urllib3==1.26.2
     - vireosnp==0.5.5
     - wrapt==1.12.1
-    - xarray==0.19.0
     - zipp==3.4.0
-prefix: /users/lvelten/sbeneyto/.conda/envs/mutaseq2
+prefix: /users/lvelten/sbeneyto/.conda/envs/mGATK
+

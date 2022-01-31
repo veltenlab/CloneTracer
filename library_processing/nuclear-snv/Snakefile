@@ -1,58 +1,64 @@
-## rules to process mitochondrial libraries
+## rules to process mutation library
 
 ### input, output and shell paths are all relative to the project directory ###
 
 configfile: "config.yml"
 
+import glob
+
 rule all:
     input:
-        expand("data/{patient}/align_reads/gene_tagged_aligned.bam",
-                    patient = config["patient_ids"]),
-        expand("data/{patient}/mito_counts/reads_cell.txt",
+        expand("data/{patient_exome}/mutation_counts/amplified_variants.csv",
+               patient_exome = config["patient_exome"]),
+        expand("data/{patient}/mutation_counts/reads_cell.txt",
                patient = config["patient_ids"]),
-        expand("data/{patient}/mito_counts/count_table/umi_collapsed.bam.bai",
-                patient = config["patient_ids"]),
-        expand("data/{patient}/mito_counts/count_table/{patient}_sum_experiment.rds",
-                patient = config["patient_ids"]),
-        expand("data/{patient}/mito_counts/count_table/nreads_umi.txt",
-                patient = config["patient_ids"]),
-        expand("results/summary_reports/{patient}/{patient}_summary_report.html",
-                patient = config["patient_ids"])
-
-# workflow rules -----------------------------------------------------------------------------------
-
-import glob
+        expand("data/{patient}/align_reads/gene_tagged_aligned.bam",
+               patient = config["patient_ids"]),
+        expand("data/{patient}/mutation_counts/alignment_stats.csv",
+               patient = config["patient_ids"]),
+        expand("data/{patient}/mutation_counts/count_table/umi_collapsed.bam",
+               patient = config["patient_ids"]),
+        expand("data/{patient}/mutation_counts/count_table/{patient}_count_table.rds",
+               patient = config["patient_ids"]),
+        expand("results/summary_reports/{patient}/{patient}_report.html",
+               patient = config["patient_ids"])
 
 # this is necessary to avoid ambiguous rules
 wildcard_constraints:
+    patient_exome='|'.join(config["patient_exome"]),
     patient='|'.join(config["patient_ids"])
 
-# merge fastqs into single file
-rule merge_fastqs:
-  input:
-    fastqs_read1 = lambda wildcards: sorted(glob.glob("raw_data/{patient}/*R1*".format(patient = wildcards.patient_novaseq))),
-    fastqs_read2 = lambda wildcards: sorted(glob.glob("raw_data/{patient}/*R2*".format(patient = wildcards.patient_novaseq)))
-  output:
-    merged_read1 = temp("raw_data/{patient}/merged_read1.fastq.gz"),
-    merged_read2 = temp("raw_data/{patient}/merged_read2.fastq.gz")
-  log:
-    "raw_data/{patient}/logs/merge_fastqs.log"
-  shell:
-    "cat {input.fastqs_read1} > {output.merged_read1} ; "
-    "cat {input.fastqs_read2} > {output.merged_read2} "
-    "2> {log}"
+# workflow rules -----------------------------------------------------------------------------------
 
-# convert fastq input files into one unmapped bam file for novaseq libraries
+#get barcodes.tsv and amplified_variants.csv file
+rule get_files:
+  input:
+      barcodes = "../gene_expression/data/{patient_exome}/outs/filtered_feature_bc_matrix/barcodes.tsv.gz",
+      variants = "../exome/results/{patient_exome}/primers/selected_variants.csv"
+  output:
+      barcodes = "data/{patient_exome}/mutation_counts/barcodes.tsv",
+      variants = "data/{patient_exome}/mutation_counts/amplified_variants.csv"
+  params:
+      comp_barcodes = "data/{patient_exome}/mutation_counts/barcodes.tsv.gz"
+  log:
+      "data/{patient_exome}/mutation_counts/logs/get_files.log"
+  shell:
+      "cp {input.barcodes} {params.comp_barcodes} ; "
+      "gunzip {params.comp_barcodes} ; "
+      "cp {input.variants} {output.variants} "
+      "2> {log}"
+
+# convert fastq input files into one unmapped bam file
 rule fastq_to_bam:
   input:
-    fastq1 = "raw_data/{patient}/merged_read1.fastq.gz",
-    fastq2 = "raw_data/{patient}/merged_read2.fastq.gz"
+    fastq1 = lambda wildcards: glob.glob('raw_data/{patient}/*R1*'.format(patient=wildcards.patient)),
+    fastq2 = lambda wildcards: glob.glob('raw_data/{patient}/*R2*'.format(patient=wildcards.patient))
   output:
     temp("data/{patient}/align_reads/unmapped.bam")
   log:
     "data/{patient}/align_reads/logs/fastq_to_bam.log"
   conda:
-    "envs/mitochondrial_library.yml"
+    "envs/nuclear_library.yml"
   shell:
     "picard FastqToSam "
     "FASTQ={input.fastq1} "
@@ -77,7 +83,7 @@ rule tag_cell_barcodes:
   log:
     "data/{patient}/align_reads/logs/tag_cell_barcodes.log"
   conda:
-    "envs/mitochondrial_library.yml"
+    "envs/nuclear_library.yml"
   shell:
     "TagBamWithReadSequenceExtended "
     "INPUT={input} "
@@ -105,7 +111,7 @@ rule tag_molecule_barcodes:
   log:
     "data/{patient}/align_reads/logs/tag_molecule_barcodes.log"
   conda:
-    "envs/mitochondrial_library.yml"
+    "envs/nuclear_library.yml"
   shell:
     "TagBamWithReadSequenceExtended "
     "INPUT={input} "
@@ -128,7 +134,7 @@ rule filter_bam:
   log:
     "data/{patient}/align_reads/logs/filter_bam.log"
   conda:
-    "envs/mitochondrial_library.yml"
+    "envs/nuclear_library.yml"
   shell:
     "FilterBam "
     "INPUT={input} "
@@ -150,7 +156,7 @@ rule trim_starting_sequence:
   log:
     "data/{patient}/align_reads/logs/trim_starting_sequence.log"
   conda:
-    "envs/mitochondrial_library.yml"
+    "envs/nuclear_library.yml"
   shell:
     "TrimStartingSequence "
     "INPUT={input} "
@@ -174,7 +180,7 @@ rule trim_polyA:
   log:
     "data/{patient}/align_reads/logs/trim_polyA.log"
   conda:
-    "envs/mitochondrial_library.yml"
+    "envs/nuclear_library.yml"
   shell:
     "PolyATrimmer "
     "INPUT={input} "
@@ -193,7 +199,7 @@ rule sam_to_fastq:
   log:
     "data/{patient}/align_reads/logs/sam_to_fastq.log"
   conda:
-    "envs/mitochondrial_library.yml"
+    "envs/nuclear_library.yml"
   shell:
     "picard SamToFastq "
     "INPUT={input} "
@@ -210,12 +216,10 @@ rule star_align:
     final_log = "data/{patient}/align_reads/star.Log.final.out"
   params:
     outprefix = "data/{patient}/align_reads/star.",
-    threads = config["star_align"]["threads_comp_bam"],
-    genome_dir = config["genome_references"]["genome_dir"]
-  log:
-    "data/{patient}/align_reads/logs/align.log"
+    genome_dir = config["genome_references"]["genome_dir"],
+    threads = config["star_align"]["threads_comp_bam"]
   conda:
-    "envs/mitochondrial_library.yml"
+    "envs/nuclear_library.yml"
   shell:
     "STAR "
     "--runThreadN {params.threads} "
@@ -239,10 +243,10 @@ rule sort_aligned:
     "data/{patient}/align_reads/star.Aligned.out.bam"
   output:
     temp("data/{patient}/align_reads/star.Aligned.sorted.bam")
-  params:
-    tmp_dir = "./tmp"
-  log: "data/{patient}/align_reads/logs/sort_aligned.log"
-  conda: "envs/mitochondrial_library.yml"
+  log:
+    "data/{patient}/align_reads/logs/sort_aligned.log"
+  conda:
+    "envs/nuclear_library.yml"
   shell:
     "picard SortSam "
     "INPUT={input} "
@@ -265,7 +269,7 @@ rule merge_bam:
   log:
     "data/{patient}/align_reads/logs/merge_bam.log"
   conda:
-    "envs/mitochondrial_library.yml"
+    "envs/nuclear_library.yml"
   shell:
     "picard MergeBamAlignment "
     "ALIGNED_BAM={input.aligned} "
@@ -287,7 +291,7 @@ rule index_bam:
     log:
         "data/{patient}/align_reads/logs/index_bam.log"
     conda:
-        "envs/mitochondrial_library.yml"
+        "envs/nuclear_library.yml"
     shell:
         "samtools index -b {input} "
         "2> {log}"
@@ -305,7 +309,7 @@ rule reformat_cellbarcode:
     log:
         "data/{patient}/align_reads/logs/reformat_barcodes.log"
     conda:
-        "envs/mitochondrial_library.yml"
+        "envs/nuclear_library.yml"
     shell:
         "python scripts/reformat_barcode.py "
         "-i {input.bam} "
@@ -324,7 +328,7 @@ rule tag_with_gene_exon:
   log:
     "data/{patient}/align_reads/logs/tag_with_gene_exon.log"
   conda:
-    "envs/mitochondrial_library.yml"
+    "envs/nuclear_library.yml"
   shell:
     "TagReadWithGeneFunction "
     "INPUT={input.bam} "
@@ -345,7 +349,7 @@ rule reads_per_cell:
   log:
     "data/{patient}/align_reads/logs/reads_per_cell.log"
   conda:
-    "envs/mitochondrial_library.yml"
+    "envs/nuclear_library.yml"
   shell:
     "BamTagHistogram "
     "INPUT={input} "
@@ -354,32 +358,86 @@ rule reads_per_cell:
     "READ_MQ={params.read_quality} "
     "2> {log}"
 
-
 # get total reads per cell
 rule get_reads_cell:
     input:
         bam = "data/{patient}/align_reads/gene_tagged_aligned.bam"
     output:
-        reads_cell = "data/{patient}/mito_counts/reads_cell.txt"
+        reads_cell = "data/{patient}/mutation_counts/reads_cell.txt"
     log:
-        "data/{patient}/mito_counts/logs/get_reads_cell.log"
+        "data/{patient}/mutation_counts/logs/get_reads_cell.log"
     conda:
-        "envs/mitochondrial_library.yml"
+        "envs/nuclear_library.yml"
     shell:
         "samtools view {input.bam} | awk '{{print $12}}' | sed 's/CB\:Z\://' | sort | uniq -c | "
-        "awk '{{if($1 > 100) {{print}} }}' > {output.reads_cell} "
-        "2> {log}"
+        "awk '{{if($1 > 100) {{print}} }}' > {output.reads_cell}"
 
-# rule to get present barcodes (it will avoid creating empty single-cell BAM files)
+
+# generate a table with the proportion of reads aligning to genes of interest, exons, mitochondria, and unmapped.
+rule alignment_summary_stats:
+  input:
+    bam = "data/{patient}/align_reads/gene_tagged_aligned.bam"
+  output:
+    "data/{patient}/mutation_counts/alignment_stats.csv"
+  params:
+    gtf_genome = config["genome_references"]["gtf"],
+    target_genes = "raw_data/{patient}/amplified_variants.csv"
+  log:
+    "data/{patient}/mutation_counts/logs/alignment_positions.log"
+  conda:
+    "envs/nuclear_library.yml"
+  shell:
+    "python scripts/align_stats_mutations.py "
+    "--bam {input.bam} "
+    "--gtf_genome {params.gtf_genome} "
+    "--output {output} "
+    "--genes {params.target_genes} "
+    "2> {log}"
+
+# make bed file with the mutated sites
+rule make_bed:
+  input:
+    genes = "raw_data/{patient}/amplified_variants.csv",
+    bam = "data/{patient}/align_reads/gene_tagged_aligned.bam"
+  output:
+    "data/{patient}/mutation_counts/mutated_sites.bed"
+  log:
+    "data/{patient}/mutation_counts/logs/make_bed.log"
+  conda:
+    "envs/nuclear_library.yml"
+  shell:
+    "Rscript scripts/make_bed.R "
+    "-i {input.genes} "
+    "-b {input.bam} "
+    "-o {output} "
+    "2> {log}"
+
+
+# filter reads not overlapping with the mutated sites
+rule filter_bam_mutations:
+  input:
+    bam = "data/{patient}/align_reads/gene_tagged_aligned.bam",
+    bed = "data/{patient}/mutation_counts/mutated_sites.bed"
+  output:
+    temp("data/{patient}/mutation_counts/mutation_filtered.bam")
+  log:
+    "data/{patient}/mutation_counts/logs/filter_bam_mutations.log"
+  conda:
+    "envs/nuclear_library.yml"
+  shell:
+    "samtools view -b -h -L {input.bed} {input.bam} > {output} "
+    "2> {log}"
+
+#rule to get present barcodes (it will avoid creating empty single-cell BAM files)
 rule get_barcodes:
     input:
-        "data/{patient}/align_reads/gene_tagged_aligned.bam"
+        "data/{patient}/mutation_counts/mutation_filtered.bam"
     output:
         temp("data/{patient}/align_reads/present_barcodes.txt")
     log:
         "data/{patient}/align_reads/logs/get_present_barcodes.log"
     conda:
-        "envs/mitochondrial_library.yml"
+        "envs/nuclear_library.yml"
     shell:
         "samtools view {input} | awk '{{print $12}}' | sed 's/CB\:Z\://' | sort | uniq > {output} "
         "2> {log}"
@@ -389,18 +447,18 @@ rule get_barcodes:
 # and in the following rules
 checkpoint split_bam:
   input:
-    bam = "data/{patient}/align_reads/gene_tagged_aligned.bam",
+    bam = "data/{patient}/mutation_counts/mutation_filtered.bam",
     barcodes = "raw_data/{patient}/barcodes.tsv",
     present_barcodes = "data/{patient}/align_reads/present_barcodes.txt"
   output:
-    directory("data/{patient}/mito_counts/count_table/temp_bams/split_bams")
+    directory("data/{patient}/mutation_counts/count_table/temp_bams/split_bams")
   params:
     cores = config["read_deduplication"]["cores_split_files"],
     max_files = config["read_deduplication"]["max_open_files"]
   log:
-    "data/{patient}/mito_counts/logs/split_bam.log"
+    "data/{patient}/mutation_counts/logs/split_bam.log"
   conda:
-    "envs/mitochondrial_library.yml"
+    "envs/nuclear_library.yml"
   shell:
     "python scripts/split_bam_single_files.py "
     "-i {input.bam} "
@@ -414,16 +472,16 @@ checkpoint split_bam:
 # rule to make consensus reads
 rule consensus_read:
   input:
-    "data/{patient}/mito_counts/count_table/temp_bams/split_bams/{barcode}.bam"
+    "data/{patient}/mutation_counts/count_table/temp_bams/split_bams/{barcode}.bam"
   output:
-    "data/{patient}/mito_counts/count_table/temp_bams/processed/{barcode}.bam"
+    "data/{patient}/mutation_counts/count_table/temp_bams/processed/{barcode}.bam"
   log:
-    "data/{patient}/mito_counts/logs/make_consensus/{barcode}.log"
+    "data/{patient}/mutation_counts/logs/make_consensus/{barcode}.log"
   params:
     errors = config["read_deduplication"]["umi_errors"],
     min_reads = config["read_deduplication"]["min_reads_umi"]
   conda:
-    "envs/mitochondrial_library.yml"
+    "envs/nuclear_library.yml"
   shell:
     "python scripts/make_consensus_read.py "
     "-i {input} "
@@ -438,7 +496,7 @@ def aggregate_bams(wildcards):
 
     checkpoint_output = checkpoints.split_bam.get(patient = wildcards.patient).output[0]
 
-    return expand("data/{patient}/mito_counts/count_table/temp_bams/processed/{barcode}.bam",
+    return expand("data/{patient}/mutation_counts/count_table/temp_bams/processed/{barcode}.bam",
                   patient = wildcards.patient,
                   barcode = glob_wildcards(os.path.join(checkpoint_output, "{barcode}.bam")).barcode)
 
@@ -448,16 +506,16 @@ rule combine_bams:
   input:
     aggregate_bams
   output:
-    temp("data/{patient}/mito_counts/count_table/unmapped_tagged.bam")
+    temp("data/{patient}/mutation_counts/count_table/unmapped_tagged.bam")
   params:
-    indir = "data/{patient}/mito_counts/count_table/temp_bams/processed/",
-    outdir = "data/{patient}/mito_counts/count_table/",
+    indir = "data/{patient}/mutation_counts/count_table/temp_bams/processed/",
+    outdir = "data/{patient}/mutation_counts/count_table/",
     max_files = config["read_deduplication"]["max_open_files"],
     cores = config["read_deduplication"]["cores_merge_bam"]
   log:
-    "data/{patient}/mito_counts/logs/combine_single_bams.log"
+    "data/{patient}/mutation_counts/logs/combine_single_bams.log"
   conda:
-    "envs/mitochondrial_library.yml"
+    "envs/nuclear_library.yml"
   shell:
     "python scripts/merge_single_bams.py "
     "-i {params.indir} "
@@ -470,13 +528,13 @@ rule combine_bams:
 # sort bam by queryname
 rule sort_bam_query:
  input:
-   "data/{patient}/mito_counts/count_table/unmapped_tagged.bam"
+   "data/{patient}/mutation_counts/count_table/unmapped_tagged.bam"
  output:
-   temp("data/{patient}/mito_counts/count_table/unmapped_sorted.bam")
+   temp("data/{patient}/mutation_counts/count_table/unmapped_sorted.bam")
  log:
-   "data/{patient}/mito_counts/logs/sort_merged_bam.log"
+   "data/{patient}/mutation_counts/logs/sort_merged_bam.log"
  conda:
-   "envs/mitochondrial_library.yml"
+   "envs/nuclear_library.yml"
  shell:
    "picard SortSam "
    "INPUT={input} "
@@ -489,13 +547,13 @@ rule sort_bam_query:
 # transform bam to fastqs for alignment
 rule dedupl_bam_fastq:
   input:
-    "data/{patient}/mito_counts/count_table/unmapped_sorted.bam"
+    "data/{patient}/mutation_counts/count_table/unmapped_sorted.bam"
   output:
-    temp("data/{patient}/mito_counts/count_table/consensus.fastq.gz")
+    temp("data/{patient}/mutation_counts/count_table/consensus.fastq.gz")
   log:
-    "data/{patient}/mito_counts/logs/bam_to_fastq.log"
+    "data/{patient}/mutation_counts/logs/bam_to_fastq.log"
   conda:
-    "envs/mitochondrial_library.yml"
+    "envs/nuclear_library.yml"
   shell:
     "picard SamToFastq "
     "INPUT={input} "
@@ -503,19 +561,19 @@ rule dedupl_bam_fastq:
     "TMP_DIR=./tmp "
     "2> {log}"
 
-# align fastqs with consensus reads
+# align deduplicated fastq using STAR (takes ~2-3min file)
 rule align_deduplicated:
   input:
-    "data/{patient}/mito_counts/count_table/consensus.fastq.gz"
+    "data/{patient}/mutation_counts/count_table/consensus.fastq.gz"
   output:
-    bam = temp("data/{patient}/mito_counts/count_table/mapped.bam")
+    bam = temp("data/{patient}/mutation_counts/count_table/mapped.bam")
   params:
     threads = config["read_deduplication"]["star_threads"],
     ref_genome = config["genome_references"]["genome_dir"],
-    prefix = "data/{patient}/mito_counts/count_table/star/",
-    out_bam = "data/{patient}/mito_counts/count_table/star/*.bam"
+    prefix = "data/{patient}/mutation_counts/count_table/star/",
+    out_bam = "data/{patient}/mutation_counts/count_table/star/*.bam"
   conda:
-    "envs/mitochondrial_library.yml"
+    "envs/nuclear_library.yml"
   shell:
     "mkdir -p {params.prefix} ; "
     "STAR "
@@ -533,15 +591,15 @@ rule align_deduplicated:
 # alignments!
 rule merge_bams:
   input:
-    aligned = "data/{patient}/mito_counts/count_table/mapped.bam",
-    unaligned = "data/{patient}/mito_counts/count_table/unmapped_sorted.bam",
+    aligned = "data/{patient}/mutation_counts/count_table/mapped.bam",
+    unaligned = "data/{patient}/mutation_counts/count_table/unmapped_sorted.bam",
     reference = config["genome_references"]["fasta"],
   output:
-    "data/{patient}/mito_counts/count_table/umi_collapsed.bam"
+    "data/{patient}/mutation_counts/count_table/umi_collapsed.bam"
   log:
-    "data/{patient}/mito_counts/logs/merge_bam.log"
+    "data/{patient}/mutation_counts/logs/merge_bam.log"
   conda:
-    "envs/mitochondrial_library.yml"
+    "envs/nuclear_library.yml"
   shell:
     "picard MergeBamAlignment "
     "ALIGNED_BAM={input.aligned} "
@@ -553,131 +611,80 @@ rule merge_bams:
     "TMP_DIR=./tmp "
     "2> {log}"
 
-# index deduplicated sorted bam (do this in the get_mito_counts script)
+# index deduplicated sorted bam (do this in the get_mutation_counts script)
 rule index_deduplicated_bam:
     input:
-        "data/{patient}/mito_counts/count_table/umi_collapsed.bam"
+        "data/{patient}/mutation_counts/count_table/umi_collapsed.bam"
     output:
-        "data/{patient}/mito_counts/count_table/umi_collapsed.bam.bai"
+        "data/{patient}/mutation_counts/count_table/umi_collapsed.bam.bai"
     log:
-        "data/{patient}/mito_counts/logs/index_merged_bam.log"
+        "data/{patient}/mutation_counts/logs/index_merged_bam.log"
     conda:
-        "envs/mitochondrial_library.yml"
+        "envs/nuclear_library.yml"
     shell:
         "samtools index -b {input} "
         "2> {log}"
 
-# split BAM file to make count tables
-checkpoint split_count_bams:
+# get count tables with ref and alt counts, coverage and missmatch ratio per cell and site
+rule make_count_table:
     input:
-        bam = "data/{patient}/mito_counts/count_table/umi_collapsed.bam",
-        bai = "data/{patient}/mito_counts/count_table/umi_collapsed.bam.bai",
-        barcodes = "data/{patient}/align_reads/present_barcodes.txt",
-        cell_ranger_barcodes = "raw_data/{patient}/barcodes.tsv"
+        bam = "data/{patient}/mutation_counts/count_table/umi_collapsed.bam",
+        bai =  "data/{patient}/mutation_counts/count_table/umi_collapsed.bam.bai",
+        variants = "raw_data/{patient}/mutation_counts/amplified_variants.csv"
     output:
-        directory("data/{patient}/mito_counts/count_table/temp_bams/count_bams")
-    params:
-        cores = config["read_deduplication"]["cores_split_files"],
-        max_files = config["read_deduplication"]["max_open_files"]
-    log:
-        "data/{patient}/mito_counts/logs/split_count_bams.log"
-    conda:
-        "envs/mitochondrial_library.yml"
-    shell:
-        "python scripts/split_count_bam.py "
-        "-i {input.bam} "
-        "-o {output} "
-        "-b {input.cell_ranger_barcodes} "
-        "-p {input.barcodes} "
-        "-c {params.cores} "
-        "-m {params.max_files} "
-        "2> {log}"
-
-# make individual count tables for each cell
-rule count_reads:
-    input:
-        "data/{patient}/mito_counts/count_table/temp_bams/count_bams/{barcode}.bam"
-    output:
-        "data/{patient}/mito_counts/count_table/temp_bams/count_tables/{barcode}.pickle"
+        "data/{patient}/mutation_counts/count_table/count_table.pickle"
     params:
         missmatch_ratio = config["count_table"]["missmatch_ratio"]
     log:
-        "data/{patient}/mito_counts/logs/count_reads/{barcode}.log"
+        "data/{patient}/mutation_counts/logs/make_count_table.log"
     conda:
-        "envs/mitochondrial_library.yml"
+        "envs/nuclear_library.yml"
     shell:
-        "python scripts/count_single_bam.py "
-        "-i {input} "
+        "python scripts/make_count_table.py "
+        "-i {input.bam} "
         "-o {output} "
+        "-m {input.variants} "
         "-r {params.missmatch_ratio} "
         "2> {log}"
 
-# make function to aggregate input after checkpoint
-def aggregate_tables(wildcards):
-
-    checkpoint_output = checkpoints.split_count_bams.get(patient = wildcards.patient).output[0]
-
-    return expand("data/{patient}/mito_counts/count_table/temp_bams/count_tables/{barcode}.pickle",
-                  patient = wildcards.patient,
-                  barcode = glob_wildcards(os.path.join(checkpoint_output, "{barcode}.bam")).barcode)
-
 
 # convert the pickle count table to R dataframe saved as RDS
-rule make_count_table:
+rule table_to_rds:
     input:
-        aggregate_tables
-    output:
-        count_tables = "data/{patient}/mito_counts/count_table/{patient}_count_table.rds",
-        sum_experiment = "data/{patient}/mito_counts/count_table/{patient}_sum_experiment.rds"
-    params:
+        pickle = "data/{patient}/mutation_counts/count_table/count_table.pickle",
+        variants = "raw_data/{patient}/mutation_counts/amplified_variants.csv",
         barcodes = "raw_data/{patient}/barcodes.tsv",
-        in_dir = "data/{patient}/mito_counts/count_table/temp_bams/count_tables",
-        reads = "data/{patient}/mito_counts/reads_cell.txt",
-        cores = config["count_table"]["cores"]
-    log:
-        "data/{patient}/mito_counts/logs/make_count_table.log"
-    conda:
-        "envs/mitochondrial_library.yml"
-    shell:
-        "Rscript scripts/pickle_to_RDS.R "
-        "-i {params.in_dir} "
-        "-b {params.barcodes} "
-        "-r {params.reads} "
-        "-s {output.sum_experiment} "
-        "-o {output.count_tables} "
-        "-c {params.cores} "
-        "-k FALSE "
-        "2> {log}"
-
-# get number of reads/UMI as txt file
-rule reads_umi:
-    input:
-        bam = "data/{patient}/mito_counts/count_table/umi_collapsed.bam",
-        bai = "data/{patient}/mito_counts/count_table/umi_collapsed.bam.bai"
+        reads = "data/{patient}/mutation_counts/reads_cell.txt"
     output:
-        "data/{patient}/mito_counts/count_table/nreads_umi.txt"
+        "data/{patient}/mutation_counts/count_table/{patient}_count_table.rds"
+    params:
+        min_umis = config["count_table"]["min_umis_mutant"]
     log:
-        "data/{patient}/mito_counts/logs/nreads_umi.log"
+        "data/{patient}/mutation_counts/logs/table_to_rds.log"
     conda:
-        "envs/mitochondrial_library.yml"
+        "envs/nuclear_library.yml"
     shell:
-        "python scripts/nreads_umi.py "
-        "-i {input.bam} "
+        "Rscript scripts/pickle_to_tidytable.R "
+        "-i {input.pickle} "
+        "-v {input.variants} "
+        "-b {input.barcodes} "
+        "-r {input.reads} "
+        "-t {params.min_umis} "
         "-o {output} "
         "2> {log}"
 
 # make summary report
 rule summary_report:
     input:
-        count_table = "data/{patient}/mito_counts/count_table/{patient}_sum_experiment.rds",
-        align_stats = "data/{patient}/align_reads/star.Log.final.out",
-        barcodes = "raw_data/{patient}/barcodes.tsv",
-        reads_umi = "data/{patient}/mito_counts/count_table/nreads_umi.txt"
+        variants = "raw_data/{patient}/amplified_variants.csv",
+        count_table = "data/{patient}/mutation_counts/count_table/{patient}_count_table.rds",
+        align_stats = "data/{patient}/mutation_counts/alignment_stats.csv",
+        barcodes = "raw_data/{patient}/barcodes.tsv"
     output:
-        "results/summary_reports/{patient}/{patient}_summary_report.html"
+        "results/summary_reports/{patient}/{patient}_report.html"
     log:
         "results/logs/{patient}/summary_report.log"
     conda:
-        "envs/mitochondrial_library.yml"
+        "envs/nuclear_library.yml"
     script:
         "scripts/summary_report.Rmd"
