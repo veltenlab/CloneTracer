@@ -62,14 +62,25 @@ Rscript design_primers.R -i example_P1/input_variants.csv -b example_P1/genomic_
 
 # Output
 
-The script produces 2 main output files
+The script produces 3 main output files:
 
 ```
 */primers/primer_sequence.csv
 */primers/primer_details.csv
+*/primers/annotated_variants.csv
 ```
 
-The former contains the name of the primers as well as the sequence. The latter contains more detailed information about each primer (e.g. temperature of melting, distance from the mutation of interest...)
+`primer_sequence.csv` contains the name of the primers as well as the sequence. 
+
+`primer_details.csv` contains more detailed information about each primer (e.g. temperature of melting, distance from the mutation of interest...).
+
+`annotated_variants.csv` includes information about the average expression of the mutated genes and estimated distance between mutations and the polyA tail. It further includes a column "primers" which indicates whether the mutation is suitable to be amplified. In case the mutaiton is not suitable for CloneTracer the column "reason" provides an explanation on why this is the case (see [Considerations section](#considerations) below):
+
+| symbol      | CHROM  | POS
+| ----------- | ------ |-----------
+| KRAS        | chr12  | 25245350
+| NRAS        | chr1   | 114713909
+| IDH2        | chr15  | 90088702
 
 The script also generates several bed files stored in the `genomic_files` and `primers` directories which can be loaded into a genome browser to confirm the correct orientation and position of the primers. 
 
@@ -77,6 +88,6 @@ In our experience visualising these files is very helpful particularly in instan
 
 # Considerations
 
-There are 2 main limitations when it comes to genotyping nuclear SNVs: the expression of the gene and the distance of the mutation to the polyA tail (3' end of mRNA). By default we select mutations that are < 1.5kb away from the estimated polyA and genes which are expressed in the sample of interest (mean raw counts/cell > 0.2).
+There are 2 main limitations when it comes to genotyping nuclear SNVs: the expression of the gene and the distance of the mutation to the polyA tail (3' end of mRNA). From our experience, amplification of mutations in genes which have low expression is highly inefficient (only a low proportion of cells is covered). When it comes to mutations further away from the polyA tail, the main issue is the length of the resulting fragments. We have noticed that longer fragments (>1kb) are sequenced less efficiently than shorter ones in illumina sequencers. Furthermore, amplifying very long fragments can be problematic when carrying out the nested PCRs.
 
-From our experience, amplification of mutations in genes which have lower expression is highly inefficient (only a low proportion of cells is covered). When it comes to mutations further away from the polyA tail, the main issue is the length of the resulting fragments. We have noticed that longer fragments (>1kb) are sequenced less efficiently than shorter ones in illumina sequencers. Furthermore, amplifying very long fragments can be problematic when carrying out the nested PCRs.
+By default we select mutations that are < 1.5kb away from the estimated polyA and genes which are expressed in the sample of interest (mean raw counts/cell > 0.15). However if you would like to amplify variants which do not fullfill one of this requirements you can include the `-m --forced_mutations` flag with a txt file which includes the mutated gene names (one gene per line). The script will then generate primers for all mutations in these genes.  
