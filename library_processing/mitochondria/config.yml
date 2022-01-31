@@ -1,0 +1,108 @@
+## mitochondrial library parameters ------------------------------------------------------
+
+# patient sample ids
+patient_ids:
+  [P266_TAPseq, P266_spiked, P80, AKLW2, AKLA1b, AKLA2, AKLM1, AKLM2, AKLM3, AKLK1, AKLK2, P186_high, P186_low, jurkatK562, P361, P19003-11, P127, P130, P210230F, P221, P270, P327, P357, P362, P364, P379, P395, P107, P183]
+  #[P80_wta, AKLA1b_WT, AKLA1b_WT] # I input the bam file from 10, the summary report cannot be run because it needs the star log out from the alignment
+  #[jurkatK562] this is also different because no summary remport can be done
+
+# samples sequenced in the patient_novaseq sequencer have 2 fastqs per read
+patients_novaseq:
+  [AKLW2, AKLA1b, AKLA2, AKLM1, AKLM2, AKLK1, AKLK2, P361, P127, P130, P210230F, P221, P270, P327, P357, P362, P364, P379, P395, P107, P183]
+
+# cell and umi barcode base positions in barcode reads for each sample. the first element of the
+# array is the cell barcode range, while the second is the UMI barcode range.
+bc_structure:
+  10x_v3: [1-16, 17-28]
+
+
+# reference files for alignment and annotation
+genome_references:
+  genome_dir: ../../../sbeneyto/alignment_references/chrM/GRCh38
+  gtf: ../../../sbeneyto/alignment_references/GRCh38/Homo_sapiens.GRCh38.100.chr.gtf
+  fasta: ../../../sbeneyto/alignment_references/chrM/GRCh38/Homo_sapiens.GRCh38.dna.chromosome.MT.fa
+  dict: ../../../sbeneyto/alignment_references/chrM/GRCh38/Homo_sapiens.GRCh38.dna.chromosome.MT.dict
+  refFlat: ../../../sbeneyto/alignment_references/GRCh38/Homo_sapiens.GRCh38.dna.primary_assembly.refFlat
+  bwa_genome: ../../../sbeneyto/alignment_references/chrM/hg38/chrM.fa
+
+
+# parameters read alignment ------------------------------------------------------------------------------
+tag_cell_barcodes:
+  base_quality: 10
+  num_bases_below_quality: 1
+
+tag_molecule_barcodes:
+  base_quality: 10
+  num_bases_below_quality: 1
+
+trim_starting_sequence:
+  adapter_sequence: AAGCAGTGGTATCAACGCAGAGTGAATGGG
+  mismatches: 0
+  num_bases: 5
+
+trim_polyA:
+  mismatches: 0
+  num_bases: 6
+
+star_align:
+  threads_comp_bam: 8
+
+bead_synthesis_error:
+  min_umis_per_cell: 25
+  max_num_errors: 1
+  read_mq: 10
+  primer_sequence: null
+  edit_distance: 0
+
+reads_per_cell:
+  read_quality: 10
+
+# params read deduplicationn ------------------------------------------------------------
+read_deduplication:
+  max_open_files: 10000
+  cores_split_files: 8
+  umi_errors: 0
+  min_reads_umi: 1
+  star_threads: 8
+  cores_merge_bam: 8
+
+# params count_table
+count_table:
+  missmatch_ratio: 0.2
+  cores: 8
+
+
+# params html report --------------------------------------------------------------------------------------------
+
+samples_report:
+  P266_TAPseq: P266_spiked
+  P266_spiked: P266_TAPseq
+  AKLW1: AKLW2
+  AKLA1b: AKLW1
+  AKLK1: AKLW1
+  AKLW2: AKLW1
+  AKLA2: AKLW1
+  AKLK2: AKLW1
+  AKLM1: AKLW1
+  AKLM2: AKLW1
+  P80: P266_TAPseq
+  P186_low: P80
+  P186_high: P80
+  AKLM3: P80
+  AKLA1b_WT: AKLW1
+  jurkatK562: AKLW1
+  P361: AKLW2
+  P19003-11: AKLW2
+  P107: AKLW2
+  P130: AKLW2
+  P183: AKLW2
+  P221: AKLW2
+  P270: AKLW2
+  P327: AKLW2
+  P357: AKLW2
+  P395: AKLW2
+  P127: AKLW2
+  P362: AKLW2
+  P364: AKLW2
+  P379: AKLW2
+  P210230F: AKLW2

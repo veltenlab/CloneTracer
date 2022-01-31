@@ -1,0 +1,1010 @@
+---
+title: "Mitochondrial library report"
+author: "Sergi Beneyto-Calabuig"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+params:
+  rmd: "summary_report.Rmd"
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: false
+    highlight: pygments 
+editor_options: 
+  chunk_output_type: console
+---
+
+<br>
+
+```{r, include=FALSE, eval=FALSE}
+
+directory <- "~/cluster/project/AML/mito_mutations"
+
+setwd(directory)
+
+sample_report <- "P186_high"
+
+plots_dir <- file.path(directory, "results/summary_reports", sample_report, "plots")
+
+source("scripts/themes_mito_library.R")
+source("scripts/functions_variant_calling.R")
+
+
+```
+
+
+
+```{r, include=FALSE}
+
+# set path to package library
+.libPaths("/nfs/users2/lvelten/sbeneyto/.conda/envs/exome/lib/R/library")
+
+
+# set global chunk settings
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+
+
+
+#load the required packages
+library(tidyverse)
+library(ggplot2)
+library(patchwork)
+library(GenomicRanges)
+library(vcfR)
+library(RColorBrewer)
+library(viridis)
+library(devtools)
+load_all("/users/lvelten/sbeneyto/software/mitoClone")
+library(DT)
+library(SummarizedExperiment)
+snakemake@source("themes_mito_library.R")
+snakemake@source("functions_variant_calling.R")
+
+
+
+# get the directory where Snakefile is stored
+directory <- gsub("/[^/]*$", "", snakemake@scriptdir)
+
+
+# directory where plots will be exported
+plots_dir <- file.path(directory, "results/summary_reports", snakemake@wildcards$patient, "plots")
+
+
+# create directory to store plots
+dir.create(plots_dir, recursive = T)
+
+
+# the name of the sample from which the report is made
+sample_report <- snakemake@wildcards$patient
+
+
+# get how many samples should be included in the report. if none specified it takes P266_TAPseq as a reference
+samples <- c(sample_report, "AKLA1b")
+
+# get names of samples to compare with
+comp_samples <- samples[!samples == sample_report]
+
+
+# get all coverage files
+coverage_data <- sapply(1:length(samples), function(i){
+
+  list.files(paste0(directory, "/data/", samples[i], "/mito_counts/count_table"),
+             pattern = paste0("sum_experiment.rds"), full.names = T)
+
+})
+
+
+# get all reads_cell files
+reads_cell_data <- sapply(1:length(samples), function(i){
+
+  list.files(paste0(directory, "/data/", samples[i], "/mito_counts"),
+             pattern = "*reads_cells*", full.names = T)
+
+})
+
+# get alignment stats files
+align_stats_files <- sapply(1:length(samples), function(i){
+  
+    list.files(paste0(directory, "/data/", samples[i], "/align_reads"),
+               pattern = "star.Log", full.names = T)
+  
+})
+
+barcodes <- list()
+
+# check if Seurat object exists
+if(file.exists(paste0(directory, "/../gene_expression/data/", sample_report, "/seurat/seurat_projected.rds"))){
+  
+  barcodes[[sample_report]] <- colnames(readRDS(paste0(directory, "/../gene_expression/data/", sample_report, "/seurat/seurat_projected.rds")))
+  
+  b <- T
+  
+}else{b <- F}
+
+# add barcodes which passed QC from control sample
+if (b){
+  
+  barcodes[["AKLA1b"]] <- colnames(readRDS(paste0(directory, "/../clonal_analysis_joint/AKLA1b/data/AKLA1b_seurat.rds")))
+    
+}
+
+
+
+
+```
+
+
+This is the summary report for the single-cell mitochondrial library of sample **`r snakemake@wildcards$patient`**.
+
+
+Data from the following samples will be included in the report for comparison: **`r snakemake@params$samples`**.
+
+
+# Proportion of reads to chrM
+
+
+Here the proportion of reads aligning to the mitochondrial genome is shown. The data shown is aligned to the mitochondrial genome only in order to increase the number of mitochondrial reads. For this reason, there is no information about where the rest of the reads align (the aligner considers them unmapped since the reference genome only contains chrM).
+
+
+```{r reads_mito}
+
+# put alignment stats in one table
+align_stats <- lapply(1:length(samples), function(i){
+
+
+  # get percentage of aligned reads from star summary report
+  aligned_reads <- as.double(gsub(".+\t", "",read_lines(align_stats_files[i])[[9]]))
+  
+  
+  # get total number of reads
+  total_reads <- as.double(gsub(".+\t", "",read_lines(align_stats_files[i])[[6]]))
+
+
+  table <- data.frame(type = c("mitochondria", "other"),
+                      nreads = c(aligned_reads, total_reads-aligned_reads)) %>%
+                      mutate(percentage = nreads/sum(nreads)*100,
+                      sample = samples[i],
+                      type = factor(type, levels = c("other", "mitochondria")))
+
+
+})
+
+
+# put data into a dataframe
+align_stats <- do.call("bind_rows", align_stats) %>% 
+                mutate(sample = factor(sample, levels = c(sample_report, comp_samples)))
+
+
+# plot with alignment locations
+align_locations_plot <- ggplot(align_stats,
+                           aes(x = sample, y = nreads, fill = type)) +
+                            geom_bar(stat = "identity", position = "stack") +
+                            theme_plots_alignment +
+                            scale_y_continuous(expand = c(0,1)) +
+                            scale_fill_manual(values = c(other_colour, mitochondria_purple)) +
+                            geom_text(data = align_stats %>% filter(percentage > 5),
+                                      aes(label = round(percentage,1)), colour = "white",
+                                      position = position_stack(vjust = 0.5))  +
+                            ylab("Total number of reads")
+
+
+# Save the plot
+ggsave(align_locations_plot + theme_plots_alignment_pdf,
+       filename = file.path(plots_dir, "alignment_positions.png"),
+       height = 8, width = 7)
+
+
+align_locations_plot
+
+```
+
+<br>
+
+***
+
+# Coverage mitochondria
+
+To asses the quality of the library the coverage in the mtDNA is shown. Normalised coverage indicates the mean number of UMIs per position divided by the number of reads/cell. It is difficult to compare MutaSeq v1 and v2 since in the former all reads are considered and in the latter duplicated reads are collapsed by UMI.
+
+## Normalised coverage
+
+<br>
+
+```{r normalised coverage}
+
+# get coordinates of the mitochondrial genes to show in the plot
+mt_genes <- read_csv(paste0(directory, "/results/reference_data/mt_genes_coordinates.csv"))
+
+
+# load position of mitochondrial primers
+mito_primers <- read_csv(paste0(directory, "/results/reference_data/mt_primers_coordinates.csv"))
+
+
+# load coverage data from MUTAseq and initial mitoTAP tests
+mito_coverage_ref <- read_csv(paste0(directory, "/results/reference_data/MT_coverage_mutaseq_tests.csv")) %>%
+                      filter(sample %in% c("Lib2 outer", "MutaSeq", "10x default")) %>%
+                      dplyr::select(-reference) %>%
+                      dplyr::mutate(sample = if_else(sample == "Lib2 outer", "K562 mitoTAP", sample),
+                             sample = if_else(sample == "MutaSeq", "MutaSeq v1", sample))
+
+
+# load total reads/cell for all cell barcodes (unfiltered)
+reads_cell <- lapply(1:length(samples), function(i){
+
+  read_csv(reads_cell_data[i], col_names = F) %>%
+                separate("X1", into = c("total_reads", "cell_barcode"), sep = " ") %>%
+                filter(cell_barcode %in% barcodes[[i]]) %>% 
+                mutate(total_reads = as.integer(total_reads),
+                       sample = samples[i],
+                       cell_barcode = gsub("CB:Z:(.+)$", "\\1", cell_barcode))
+
+})
+
+
+names(reads_cell) <- samples
+
+
+# convert coverage table to data frame and tidy
+mito_coverage <- lapply(1:length(samples), function(i){
+
+    mito_object <- readRDS(coverage_data[i])
+
+    mito_object <- assays(mito_object)$nUMIs %>% as.matrix() %>%
+                    as.data.frame() %>%
+                    rownames_to_column(var = "position") %>%
+                    pivot_longer(names_to = "cell_barcode", values_to = "raw_coverage",
+                                 cols = -position) %>%
+                    filter(cell_barcode %in% barcodes[[i]]) %>% 
+                    left_join(reads_cell[[i]]) %>%
+                    mutate(norm_coverage = raw_coverage/total_reads) %>%
+                    group_by(position) %>%
+                    dplyr::summarise(mean_coverage = mean(norm_coverage, na.rm = T),
+                                     raw_coverage = mean(raw_coverage, na.rm = T),
+                              .groups = "keep") %>%
+                    ungroup() %>%
+                    mutate(sample = samples[i],
+                           position = as.integer(position)) %>%
+                    filter(is.na(position) == F) %>%
+                    arrange(position) %>%
+                    mutate(smooth_coverage = runmed(mean_coverage, 31),
+                           raw_coverage = runmed(raw_coverage, 31)) %>%
+                    dplyr::select(position, raw_coverage, mean_coverage, smooth_coverage, sample)
+
+})
+
+
+# bind reference and sample coverage tables
+mito_coverage_norm <- bind_rows(mito_coverage_ref,
+                                do.call("bind_rows", mito_coverage) %>% dplyr::select(-raw_coverage)) %>%
+                                mutate(sample = factor(sample))
+
+
+# get the max coverage
+max_norm_cvg <- mito_coverage_norm %>% pull(smooth_coverage) %>% max() + 0.00001
+
+
+# plot norm coverage compared to default 10x and MutaSeq v1
+norm_coverage_plot <- ggplot(mito_coverage_norm %>% filter(sample %in% c("MutaSeq v1", sample_report)),
+                            aes(x = position, y = smooth_coverage, colour = sample)) +
+                            geom_line(size = 1.05)  +
+                            scale_color_manual(values = setNames(c(google_blue, google_red, "black"),
+                                                                 c(sample_report, "10x default", "MutaSeq v1")))+
+                            geom_segment(data = mt_genes,
+                                         aes(x = start, xend = end,
+                                             y = max_norm_cvg, yend = max_norm_cvg),
+                                           size = 2, colour = viridis(15, begin = 0.2)) +
+                            geom_segment(data = mito_primers,
+                                        aes(x = start, xend = end,
+                                           y = max_norm_cvg, yend = max_norm_cvg),
+                                           size = 2, colour = "black") +
+                            coord_polar() +
+                            ylab("Normalised coverage") +
+                            xlab("Position in the genome") +
+                            theme_norm_coverage
+
+
+# save the plot
+ggsave(norm_coverage_plot + theme_norm_coverage_pdf,
+       filename = file.path(plots_dir, "norm_coverage_mutaseqv1.png"),
+       height = 7, width = 7)
+
+
+norm_coverage_plot
+
+```
+
+
+***
+
+## Raw coverage
+
+<br>
+
+```{r raw coverage}
+
+# make table with raw coverage
+mito_coverage_raw <- bind_rows(readRDS(paste0(directory, "/results/reference_data/mutaseq_coverage_table.RDS"))$raw %>%
+                                filter(Method == "MutaSeq") %>%
+                                dplyr::rename(position = "bp", raw_coverage = "score",
+                                              sample = "Method") %>%
+                                mutate(sample = "MutaSeq v1") %>%
+                                dplyr::select(-chr),
+                               do.call("bind_rows",mito_coverage) %>% dplyr::select(position, raw_coverage, sample))
+
+
+# get the max coverage
+max_raw_cvg <- mito_coverage_raw %>% pull(raw_coverage) %>% max() + 3000
+
+
+# plot raw coverage
+raw_coverage_plot <- ggplot(mito_coverage_raw %>% filter(sample %in% c("MutaSeq v1", sample_report)),
+                            aes(x = position, y = raw_coverage, colour = sample)) +
+                            geom_line(size = 1.05) +
+                            scale_color_manual(values = setNames(c("black", google_blue), c("MutaSeq v1",sample_report))) +
+                            geom_segment(data = mt_genes,
+                                         aes(x = start, xend = end,
+                                             y = max_raw_cvg, yend = max_raw_cvg),
+                                             size = 2, colour = viridis(15, begin = 0.2)) +
+                            geom_segment(data = mito_primers,
+                                        aes(x = start, xend = end,
+                                           y = max_raw_cvg, yend = max_raw_cvg),
+                                           size = 2, colour = "black") +
+                            coord_polar() +
+                            ylab("Raw coverage (Number of UMIs)") +
+                            xlab("Position in the genome") +
+                            theme_raw_coverage
+
+
+# save the plot
+ggsave(raw_coverage_plot + theme_raw_coverage_pdf,
+       filename = file.path(plots_dir, "raw_coverage_mutaseqv1.png"),
+       height = 7, width = 7)
+
+raw_coverage_plot
+
+```
+
+***
+
+## Reads/UMI
+
+In the analysis duplicated reads with the same UMI and end position were collapsed into a consensus sequence using [CallMolecularConsensusReads](http://fulcrumgenomics.github.io/fgbio/tools/latest/CallMolecularConsensusReads.html) from fgbio. Here I plot the average reads/UMI for the mtDNA. 
+
+```{r reads/UMI}
+
+depth_data <- lapply(1:length(samples), function(i){
+  
+  mito_object <- readRDS(coverage_data[i])
+  
+  avg_reads <- (mito_object@assays@data$reads_umi) %>% as.matrix() %>% 
+                    as.data.frame() %>% 
+                    rownames_to_column(var = "position") %>%
+                    pivot_longer(names_to = "cell_barcode", values_to = "nreads",
+                                 cols = -position) %>%
+                    filter(cell_barcode %in% barcodes[[i]]) %>% 
+                    left_join(reads_cell[[i]]) %>%
+                    mutate(norm_avg_reads = nreads/total_reads) %>%
+                    group_by(position) %>%
+                    dplyr::summarise(norm_coverage = mean(norm_avg_reads, na.rm = T),
+                                     raw_coverage = mean(nreads, na.rm = T),
+                              .groups = "keep") %>%
+                    ungroup() %>%
+                    mutate(sample = samples[i],
+                           position = as.integer(position)) %>%
+                    filter(is.na(position) == F) %>%
+                    arrange(position) %>%
+                    mutate(smooth_coverage = runmed(norm_coverage, 31),
+                           raw_coverage = runmed(raw_coverage, 31)) %>%
+                    dplyr::select(position, raw_coverage, norm_coverage, smooth_coverage, sample)          
+  
+  avg_reads
+  
+})
+
+reads_umi <- do.call("bind_rows", depth_data)
+
+
+# get the max coverage
+max_umi_cvg <- reads_umi %>% pull(raw_coverage) %>% max() + 30
+
+
+# plot raw coverage
+raw_umi_cvg_plot <- ggplot(reads_umi %>% filter(sample %in% c(sample_report)),
+                            aes(x = position, y = raw_coverage, colour = sample)) +
+                            geom_line(size = 1.05) +
+                            scale_color_manual(values = setNames(c("black", google_blue), 
+                                                                 c("MutaSeq v1",sample_report))) +
+                            geom_segment(data = mt_genes,
+                                         aes(x = start, xend = end,
+                                             y = max_umi_cvg, yend = max_umi_cvg),
+                                             size = 2, colour = viridis(15, begin = 0.2)) +
+                            geom_segment(data = mito_primers,
+                                        aes(x = start, xend = end,
+                                           y = max_umi_cvg, yend = max_umi_cvg),
+                                           size = 2, colour = "black") +
+                            coord_polar() +
+                            ylab("Average reads/UMI") +
+                            xlab("Position in the genome") +
+                            theme_umi_coverage
+
+
+# save the plot
+ggsave(raw_umi_cvg_plot + theme_umi_coverage_pdf,
+       filename = file.path(plots_dir, "reads_umi_sample.png"),
+       height = 7, width = 7)
+
+
+raw_umi_cvg_plot
+
+
+
+```
+
+***
+
+## Reads/amplicon
+
+The snakemake pipeline also extracts the number of reads supporting each amplicon. Here I make a histogram of the values. Amplicons with > 10 reads were set to 10 reads. This plot is useful to determine the sequencing saturation levels.
+
+<br>
+
+```{r reads amplicon}
+
+# read file with reads/amplicon
+reads_amplicon <- read_delim(paste0(directory,
+                                    "/data/", sample_report, "/mito_counts/count_table/nreads_umi.txt"),
+                             delim = "\t", col_names = F) %>% 
+                              mutate(nreads = ifelse(X1 > 10, 10, X1))
+
+# make histogram
+hist_reads_amplicon <- ggplot(reads_amplicon, 
+                              aes(x = nreads))+
+                              geom_histogram(bins = 9) +
+                              ylab("Number of amplicons") +
+                              theme_classic() +
+                              scale_x_continuous(breaks = 1:10) +
+                              scale_y_continuous(expand = c(0,0)) +
+                              theme(axis.title = element_text(size = 14),
+                                    axis.text = element_text(size = 13))
+
+ggsave(hist_reads_amplicon,
+       filename = file.path(plots_dir, "hist_reads_umi.png"),
+       height = 7, width = 7)
+
+
+hist_reads_amplicon
+
+```
+
+***
+
+## Base quality
+
+Here I show the average base quality/cell over the mitochondrial genome.
+
+```{r base quality}
+
+base_qual <- lapply(1:length(samples), function(i){
+  
+  mito_object <- readRDS(coverage_data[i])
+  
+  qual_list <- lapply(1:length(c("A_qual", "T_qual", "C_qual", "G_qual")), function(j){
+    
+    nt <- c("A_qual", "T_qual", "C_qual", "G_qual")[j]
+    
+    mean_qual <- mito_object@assays@data[[nt]] %>% as.matrix() %>% 
+                    as.data.frame() %>% 
+                    rownames_to_column(var = "position") %>%
+                    pivot_longer(names_to = "cell_barcode", values_to = "qual",
+                                 cols = -position) %>%
+                    filter(cell_barcode %in% barcodes[[i]]) %>% 
+                    filter(qual > 0) %>% 
+                    group_by(position) %>%
+                    dplyr::summarise(avg_qual = mean(qual, na.rm = T),
+                              .groups = "keep") %>%
+                    ungroup() %>%
+                    mutate(position = as.integer(position)) %>%
+                    filter(is.na(position) == F) %>%
+                    arrange(position) 
+    
+    colnames(mean_qual) <- c("position", nt)
+    
+    mean_qual
+  })
+  
+  qual_table <- tibble(position = 1:16569) %>% 
+                  left_join(qual_list[[1]]) %>% 
+                  left_join(qual_list[[2]]) %>% 
+                  left_join(qual_list[[3]]) %>% 
+                  left_join(qual_list[[4]]) %>% 
+                  pivot_longer(cols = -position, 
+                               names_to = "nucleotide", values_to = "qual") %>% 
+                  group_by(position) %>% 
+                  dplyr::summarise(avg_qual = max(qual, na.rm = T),
+                                   .groups = "keep") %>% 
+                  ungroup() %>% 
+                  mutate(avg_qual = ifelse(is.nan(avg_qual) | is.na(avg_qual), 0, avg_qual),
+                         sample = samples[i],
+                         avg_qual = runmed(avg_qual, 31)) 
+  
+})
+
+base_qual_table <- do.call("bind_rows", base_qual)
+
+
+# get the max quality
+max_qual <- base_qual_table %>% pull(avg_qual) %>% max() + 5
+
+
+# plot raw coverage
+qual_plot <- ggplot(base_qual_table %>% filter(sample %in% c(sample_report)),
+                            aes(x = position, y = avg_qual, colour = sample)) +
+                            geom_line(size = 1.05) +
+                            scale_color_manual(values = setNames(c(google_blue), 
+                                                                 c(sample_report))) +
+                            geom_segment(data = mt_genes,
+                                         aes(x = start, xend = end,
+                                             y = max_qual, yend = max_qual),
+                                             size = 2, colour = viridis(15, begin = 0.2)) +
+                            geom_segment(data = mito_primers,
+                                        aes(x = start, xend = end,
+                                           y = max_qual, yend = max_qual),
+                                           size = 2, colour = "black") +
+                            coord_polar() +
+                            ylab("Average base quality") +
+                            xlab("Position in the genome") + 
+                            theme_base_qual
+
+
+# save the plot
+ggsave(qual_plot + theme_base_qual_pdf,
+       filename = file.path(plots_dir, "base_quality_sample.png"),
+       height = 7, width = 7)
+
+
+qual_plot
+
+```
+
+
+## Comparison across samples
+
+
+### Raw coverage
+
+<br>
+
+```{r}
+
+
+# plot raw coverage for all selected samples
+raw_coverage_comp_plot <- ggplot(mito_coverage_raw %>% filter(!sample %in% "MutaSeq v1"),
+                            aes(x = position, y = raw_coverage, colour = sample)) +
+                            geom_line(size = 1.05) +
+                            scale_color_manual(values = setNames(c(google_blue, col_cvg_comparison[2:length(samples)]), 
+                                                                 c(sample_report, samples[2:length(samples)]))) +
+                            geom_segment(data = mt_genes,
+                                         aes(x = start, xend = end,
+                                             y = max_raw_cvg, yend = max_raw_cvg),
+                                             size = 2, colour = viridis(15, begin = 0.2)) +
+                            geom_segment(data = mito_primers,
+                                        aes(x = start, xend = end,
+                                           y = max_raw_cvg, yend = max_raw_cvg),
+                                           size = 2, colour = "black") +
+                            coord_polar() +
+                            ylab("Raw coverage (Number of UMIs)") +
+                            xlab("Position in the genome") +
+                            theme_raw_coverage
+
+
+
+raw_coverage_comp_plot
+
+
+
+```
+
+***
+
+### Normalised coverage
+
+<br>
+
+```{r}
+
+
+# plot norm coverage for all selected samples
+norm_coverage_comp_plot <- ggplot(mito_coverage_norm %>% filter(!sample %in% c("MutaSeq v1", "10x default", "K562 mitoTAP")),
+                            aes(x = position, y = smooth_coverage, colour = sample)) +
+                            geom_line(size = 1.05) +
+                            scale_color_manual(values = setNames(c(google_blue, col_cvg_comparison[2:length(samples)]), 
+                                                                 c(sample_report, samples[2:length(samples)]))) +
+                            geom_segment(data = mt_genes,
+                                         aes(x = start, xend = end,
+                                             y = max_norm_cvg, yend = max_norm_cvg),
+                                             size = 2, colour = viridis(15, begin = 0.2)) +
+                            geom_segment(data = mito_primers,
+                                        aes(x = start, xend = end,
+                                           y = max_norm_cvg, yend = max_norm_cvg),
+                                           size = 2, colour = "black") +
+                            coord_polar() +
+                            ylab("Normalised coverage") +
+                            xlab("Position in the genome") +
+                            theme_norm_coverage
+
+
+
+# save the plot
+ggsave((raw_coverage_comp_plot + theme_raw_coverage_pdf) +
+         (norm_coverage_comp_plot + theme_norm_coverage_pdf),
+         filename = file.path(plots_dir, "coverage_sample_comparison.png"),
+         height = 7, width = 15)
+
+
+norm_coverage_comp_plot
+
+```
+
+***
+
+### Reads/UMI
+
+```{r}
+
+# plot raw coverage
+raw_umi_comp_plot <- ggplot(reads_umi,
+                            aes(x = position, y = raw_coverage, colour = sample)) +
+                            geom_line(size = 1.05) +
+                            scale_color_manual(values = setNames(c(google_blue, col_cvg_comparison[2:length(samples)]), 
+                                                                 c(sample_report, samples[2:length(samples)]))) +
+                            geom_segment(data = mt_genes,
+                                         aes(x = start, xend = end,
+                                             y = max_umi_cvg, yend = max_umi_cvg),
+                                             size = 2, colour = viridis(15, begin = 0.2)) +
+                            geom_segment(data = mito_primers,
+                                        aes(x = start, xend = end,
+                                           y = max_umi_cvg, yend = max_umi_cvg),
+                                           size = 2, colour = "black") +
+                            coord_polar() +
+                            ylab("Average reads/UMI") +
+                            xlab("Position in the genome") +
+                            theme_umi_coverage
+
+
+# save the plot
+ggsave(raw_umi_comp_plot + theme_umi_coverage_pdf,
+       filename = file.path(plots_dir, "reads_umi_comparison.png"),
+       height = 7, width = 7)
+
+
+raw_umi_comp_plot
+
+```
+
+
+# ATAC mitochondrial variants
+
+Bulk ATAC is run in parallel to the scRNAseq libraries. With these data, mitochondrial mutations can be discovered. These can be used as a query to look for mutations in the RNA. Furthermore, they can be used as a corroboration of mutations found in the RNA libraries (e.g. RNA editing or other post-transcriptional processes could lead to false variants in the RNA data, however these will not be detected in ATAC)
+
+```{r}
+
+if(sample_report %in% c("P266_TAPseq", "P266_spiked")){sample_report_atac <- "P266"
+
+
+}else if(sample_report %in% c("P186_high", "P186_low")){
+  
+  sample_report_atac <- "P186"
+  
+}else if(sample_report == "P19003-11"){
+  
+  sample_report_atac <- "P19003_1"
+  
+}else{sample_report_atac <- sample_report}
+
+if(file.exists(paste0(directory, "/../bulk_atac/data/", sample_report_atac, "/variants/variants_table.csv"))){
+
+  atac_variants <- TRUE
+
+  atac_variants_table <- read_csv(paste0(directory, "/../bulk_atac/data/", sample_report_atac,
+                                         "/variants/variants_table.csv")) 
+
+  print(paste0("Bulk ATAC data for ", sample_report_atac, " available"))
+
+
+}else{print(paste0("Bulk ATAC data for ", sample_report_atac, " NOT available"))
+      atac_variants = FALSE}
+
+seurat <- F
+
+```
+
+## Position of the variants
+
+In bulk ATAC any variant in mtDNA can be detected because the mitochondrial genome is free of histones and the coverage is homogeneus. However, in order to detect a variant in RNA it has to fall in a site which is sufficiently covered. Here I show the variants detected in bulk ATAC as red segments in the raw coverage plot of the sample of interest. This gives a feeling of whether it would be possible to call the mutation from the mitochondrial library (e.g. if the mutation occurs in the D-loop of mtDNA it would be impossible to detect in RNA as this region is non-coding).
+
+<br>
+
+```{r eval=atac_variants, include=atac_variants}
+
+# coverage plot comparison
+coverage_mutations_plot <- ggplot(mito_coverage_raw %>% filter(sample == sample_report),
+                              aes(x = position, y = raw_coverage)) +
+                              geom_line(size = 1.05) +
+                              scale_color_manual(values = google_blue) +
+                              geom_segment(data = mt_genes,
+                                             aes(x = start, xend = end,
+                                                 y = max_raw_cvg, yend = max_raw_cvg),
+                                                  size = 2, colour = viridis(15, begin = 0.2)) +
+                              geom_segment(data = mito_primers,
+                                             aes(x = start, xend = end,
+                                                 y = max_raw_cvg, yend = max_raw_cvg),
+                                                  size = 2, colour = "black") +
+                              geom_segment(data = atac_variants_table,
+                                             aes(x = position - 10, xend = position + 10,
+                                                 y = max_raw_cvg, yend = max_raw_cvg),
+                                                  size = 2, colour = "red") +
+                              coord_polar() +
+                              geom_hline(yintercept = c(1, 10, 100, 1000),
+                                          linetype = "dashed",
+                                          alpha = 0.3) +
+                              ylab("Mean raw coverage per cell") +
+                              xlab("Position in the genome") +
+                              theme_raw_coverage
+
+
+
+# save plot
+ggsave(coverage_mutations_plot + theme_raw_coverage_pdf,
+       height = 7, width = 7,
+       filename = paste0(plots_dir, "/coverage_atac_variants.png"))
+
+
+coverage_mutations_plot
+
+```
+
+***
+
+## Coverage of the variants
+
+The following table shows a summary of the variants detected in bulk ATAC as well as the raw coverage in the sample of interest.
+
+<br>
+
+```{r eval=atac_variants, include=atac_variants}
+
+# load variants table
+atac_variants_table <- atac_variants_table %>%
+                        left_join(mito_coverage_raw %>% filter(sample == sample_report)) %>%
+                        dplyr::select(position, REF, ALT, name, af_tcells, af_tumor, raw_coverage, name_mut) %>%
+                        dplyr::rename(mean_coverage = raw_coverage) %>%
+                        mutate(mean_coverage = paste0(round(mean_coverage,0), "X"))
+
+# check if Seurat is available 
+if(file.exists(paste0(directory, "/../gene_expression/data/", sample_report, "/seurat/seurat_projected.rds"))){
+  
+  seurat <- T
+  
+}else{seurat <- F}
+
+
+# display the mutation table
+datatable(atac_variants_table)
+
+
+```
+
+***
+
+## UMAP ATAC variants
+
+Here I plot cells with at least 3 % mutant reads in the ATAC regions
+
+<br>
+
+```{r eval=seurat, include=seurat}
+
+# get info about cells from Seurat
+seurat <- readRDS(paste0(directory, "/../gene_expression/data/", sample_report, 
+                           "/seurat/seurat_projected.rds"))
+
+
+# get M and N matrix for atac variants
+matrix_list <- mito_matrix(seurat, variants = atac_variants_table$name_mut, mito_path = paste0(directory, "/data/"),
+                           name = sample_report)
+
+
+mito_table_list <- lapply(1:ncol(matrix_list$M), function(i){
+  
+  # make umap table
+  atac_mito_table <- data.frame(cell_barcode = rownames(matrix_list[[1]]),
+                              mut = matrix_list[[1]][,i],
+                              ref = matrix_list[[2]][,i],
+                              af = matrix_list[[1]][,i]/(matrix_list[[1]][,i]+matrix_list[[2]][,i])) %>%
+                              mutate(status = case_when(af > 0.1 ~ "mutant", 
+                                                        is.nan(af) ~ "dropout",
+                                                        ref > 0 ~ "reference")) %>% 
+                              pull(status)
+  
+})
+
+# make umap table
+atac_mito_table <- as.matrix(do.call("cbind",mito_table_list))
+colnames(atac_mito_table) <- colnames(matrix_list$M)
+
+atac_mito_table <- atac_mito_table %>% as.data.frame() %>%  
+                      mutate(cell_barcode = rownames(matrix_list$M)) %>%  
+                      pivot_longer(cols = colnames(matrix_list$M), values_to = "status", names_to = "symbol") %>% 
+                      left_join(seurat@meta.data %>% rownames_to_column(var = "cell_barcode")) 
+                              
+                              
+
+# make UMAP showing the variants
+umap_variants <- ggplot(atac_mito_table,aes(x = umapx, y = umapy, color = status)) + 
+                  geom_point(size = 1) +
+                  theme_classic() +
+                  scale_colour_manual(values = setNames(c("gray", bulls_red, dallas_blue, bulls_red, bulls_red),
+                                               c("dropout", "mutant", "reference", "trisomy", "deletion"))) + 
+                  theme(axis.title = element_text(size = 12),
+                        axis.text = element_text(size = 12, color = "black"),
+                        legend.title = element_blank(),
+                        plot.title = element_text(size = 22, hjust = 0.5),
+                        legend.text = element_text(size = 12),
+                        legend.position = "bottom",
+                        strip.text = element_text(size =12)) +
+                  guides(color = guide_legend(override.aes = list(size = 1.5))) +
+                  facet_wrap(vars(symbol), ncol = 1)
+
+
+
+umap_variants
+
+ggsave(umap_variants,
+       filename = file.path(plots_dir, "umap_atac_variants.png"),
+       height = 7*length(colnames(matrix_list$M)), width = 7)
+
+```
+
+
+# Variant discovery 
+
+The following plots illustrate potential mitochondrial variants. The steps are the following:
+
+1. Run mitoClone from blacklist with loose filters to detect many sites which could consitute variants
+2. Apply Fisher's test between the potential variants and T-cells and non-T-cells groups
+3. Plot the distribution of the variants in the projected UMAP
+
+It is worth mentioning that some variants might not be detected due to their presence in both T-cells and non-T-cells. Furthermore, this approach often yields variants which affect very few cells or that are not real. However, it gives a broad overview of potential variants and this can be useful in some patients.
+
+## Quick clustering
+
+Unfiltered variants are shown. This is usually not very informative because the very loose filters all
+
+<br>
+
+```{r variant clustering, fig.height=15}
+
+# load mitochondrial count table (output from snakemake pipeline)
+mito_count_matrix <- readRDS(paste0(directory, "/data/", sample_report,
+                                    "/mito_counts/count_table/", sample_report,
+                                    "_count_table.rds"))
+
+
+# filter out cells which did not pass the quality control filters
+mito_count_matrix <- mito_count_matrix[barcodes[[1]]]
+
+
+# generate a mutationCall object with relatively relaxed filtering parameters
+clones_object <- mutationCallsFromBlacklistCoverage(mito_count_matrix, 
+                                                    min.af = 0.1,
+                                                    lim.cov = 10,
+                                                    min.num.samples = 0.01*length(mito_count_matrix), 
+                                                    universal.var.cells = 0.90*length(mito_count_matrix),
+                                                    max.var.na = 0.9,
+                                                    max.cell.na = 1,
+                                                    binarize = 0.01,
+                                                    min_coverage = 1)
+
+
+quick_cluster_mod(clones_object, binarize = F, sample = sample_report)
+
+
+```
+
+***
+
+## Association tests
+
+I carry out association tests between the variants shown above and T-cell and non-T-cell populations
+
+<br>
+
+```{r association tests, fig.height=15, fig.width=10}
+
+# load metadata from Seurat object
+metadata <- readRDS(paste0(directory, "/../gene_expression/data/", sample_report, "/seurat/seurat_projected.rds"))@meta.data %>% 
+                  rownames_to_column(var = "cell_barcode")
+
+# make ternary table for T cells and non-T cells groups
+ternary_cells <- ternary_tcells(metadata) %>% 
+                  filter(cell_barcode %in% rownames(clones_object@M)) %>% 
+                  dplyr::select(one_of("tcell", "non_tcell", "cell_barcode")) %>% 
+                  column_to_rownames(var = "cell_barcode")
+
+# make association tests with cell types
+fisher_mito <- association_tests(clones_object, ternary_table = ternary_cells)
+
+
+# make qplots from the association tests
+qplots <- make_qplots(fisher_mito)
+
+
+# association plots
+wrap_plots(qplots)
+
+
+```
+
+***
+
+## UMAP variants
+
+Here I plots the 6 variants which are positively associated with non-T-cells and have the highest adjusted p_value
+
+<br>
+
+```{r UMAP variants, fig.width=12, fig.height=10}
+
+# select variants with highest p_value
+if(nrow(fisher_mito$non_tcell) > 5){
+  
+  variants <- fisher_mito$non_tcell[fisher_mito$non_tcell$pval %in% sort(fisher_mito$non_tcell$pval, decreasing = T)[1:6], 1]
+  
+}else{variants <- fisher_mito$non_tcell$name}
+
+# add mitochondrial mutation information to table with UMAP coordinates
+umap_table_mito <- metadata  %>% 
+                    left_join(as.data.frame(clones_object@ternary) %>%
+                                dplyr::select(variants) %>% 
+                                rownames_to_column(var = "cell_barcode") %>% 
+                                mutate_at(vars(variants), rename_ternary)) %>% 
+                    mutate_at(vars(variants), rename_na) %>% 
+                    mutate_at(vars(variants),
+                              function(x)factor(x,levels = c("reference", "mutant", "dropout"))) %>% 
+                    pivot_longer(cols = variants,
+                                 names_to = "symbol", values_to = "status")
+                    
+
+
+# make a list of UMAPs, one per variant
+umap_nucl_mito <- ggplot(umap_table_mito,aes(x = umapx, y = umapy, color = status)) + 
+                  geom_point(size = 1) +
+                  theme_classic() +
+                  scale_colour_manual(values = setNames(c("gray", bulls_red, dallas_blue, bulls_red, bulls_red),
+                                               c("dropout", "mutant", "reference", "trisomy", "deletion"))) + 
+                  theme(axis.title = element_text(size = 12),
+                        axis.text = element_text(size = 12, color = "black"),
+                        legend.title = element_blank(),
+                        plot.title = element_text(size = 22, hjust = 0.5),
+                        legend.text = element_text(size = 12),
+                        legend.position = "bottom",
+                        strip.text = element_text(size =12)) +
+                  guides(color = guide_legend(override.aes = list(size = 1.5))) +
+                  facet_wrap(vars(symbol))
+
+umap_nucl_mito
+
+```
+
+
+# Source
+* <a download="summary_report.Rmd" href="`r base64enc::dataURI(file = params$rmd, mime = 'text/rmd',
+    encoding = 'base64')`">R Markdown source file (to produce this document)</a>
+
+```{r}
+save.image()
+```
+
