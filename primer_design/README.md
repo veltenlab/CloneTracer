@@ -20,7 +20,7 @@ conda env create -f envs/primer_design.yml
 
 There are 3 main input files required to run the script:
 
-* csv file with the following format:
+* .csv file with the following format:
 
 | symbol      | CHROM  | POS
 | ----------- | ------ |-----------
@@ -45,7 +45,6 @@ The script has the following command-line arguments:
 * `-n --name <text>`: sample name
 * `-r --read_length <integer>`: read length of read2 
 * `-d --out_directory <directory>`: directory where output files will be written
-* `-t --multimodal <logical>`: TRUE when additional modalities where measured besided RNA (e.g. surface antigens, ATAC...)
 
 ### Optional
 
@@ -74,13 +73,13 @@ The script produces 3 main output files:
 
 `primer_details.csv` contains more detailed information about each primer (e.g. temperature of melting, distance from the mutation of interest...).
 
-`annotated_variants.csv` includes information about the average expression of the mutated genes and estimated distance between mutations and the polyA tail. It further includes a column "primers" which indicates whether the mutation is suitable to be amplified. In case the mutaiton is not suitable for CloneTracer the column "reason" provides an explanation on why this is the case (see [Considerations section](#considerations) below):
+`annotated_variants.csv` includes information about the average expression of the mutated genes and estimated distance between mutations and the polyA tail. It further includes a column "primers" which indicates whether the mutation is suitable to be amplified. In case the mutation is not suitable for CloneTracer the column "reason" provides an explanation on why this is the case (see [Considerations section](#considerations) below):
 
-| symbol      | CHROM  | POS
-| ----------- | ------ |-----------
-| KRAS        | chr12  | 25245350
-| NRAS        | chr1   | 114713909
-| IDH2        | chr15  | 90088702
+| symbol      | CHROM  | POS       | counts_cell | distance_3_end | primers | reason            
+| ----------- | ------ |-----------| ----------- | -------------- |-------- | ----------------
+| KRAS        | chr12  | 25245350  | 0.56        | 282            | TRUE    | primers_designed
+| IDH2        | chr1   | 114713909 | 1.06        | 1022           | TRUE    | primers_designed
+| NRAS        | chr15  | 90088702  | 0.2         | 3808           | TRUE    | primers_designed
 
 The script also generates several bed files stored in the `genomic_files` and `primers` directories which can be loaded into a genome browser to confirm the correct orientation and position of the primers. 
 
@@ -88,6 +87,6 @@ In our experience visualising these files is very helpful particularly in instan
 
 # Considerations
 
-There are 2 main limitations when it comes to genotyping nuclear SNVs: the expression of the gene and the distance of the mutation to the polyA tail (3' end of mRNA). From our experience, amplification of mutations in genes which have low expression is highly inefficient (only a low proportion of cells is covered). When it comes to mutations further away from the polyA tail, the main issue is the length of the resulting fragments. We have noticed that longer fragments (>1kb) are sequenced less efficiently than shorter ones in illumina sequencers. Furthermore, amplifying very long fragments can be problematic when carrying out the nested PCRs.
+There are 2 main limitations when it comes to genotyping nuclear SNVs from 3' scRNAseq: the expression of the gene and the distance of the mutation to the polyA tail (3' end of mRNA). From our experience, amplification of mutations in low-expressed genes is highly inefficient (only a small proportion of cells is covered). When it comes to mutations further away from the polyA tail, the main issue is the length of the resulting fragments. We have noticed that longer fragments (>1kb) are sequenced less efficiently than shorter ones in Illumina sequencers. Furthermore, amplifying very long fragments can be problematic when carrying out the nested PCRs.
 
-By default we select mutations that are < 1.5kb away from the estimated polyA and genes which are expressed in the sample of interest (mean raw counts/cell > 0.15). However if you would like to amplify variants which do not fullfill one of this requirements you can include the `-m --forced_mutations` flag with a txt file which includes the mutated gene names (one gene per line). The script will then generate primers for all mutations in these genes.  
+By default we select mutations that are < 1.5kb away from the estimated polyA and in genes which are expressed in the sample of interest (mean raw counts/cell > 0.15). However if you would like to amplify variants which do not fullfill these requirements you can include the `-m --forced_mutations` flag with a txt file which includes the mutated gene names (one gene per line). The script will then generate primers for all mutations in these genes.  
