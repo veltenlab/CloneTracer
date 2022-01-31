@@ -19,7 +19,7 @@ editor_options:
 
 ```{r, include=FALSE, eval=FALSE}
 
-directory <- "~/cluster/project/AML/mito_mutations"
+directory <- "~/cluster/project/AML/git/CloneTracer/library_processing/mitochondria/"
 
 setwd(directory)
 
@@ -37,16 +37,11 @@ source("scripts/functions_variant_calling.R")
 
 ```{r, include=FALSE}
 
-# set path to package library
-.libPaths("/nfs/users2/lvelten/sbeneyto/.conda/envs/exome/lib/R/library")
-
 
 # set global chunk settings
 knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(message = FALSE)
 knitr::opts_chunk$set(warning = FALSE)
-
-
 
 #load the required packages
 library(tidyverse)
@@ -57,12 +52,10 @@ library(vcfR)
 library(RColorBrewer)
 library(viridis)
 library(devtools)
-load_all("/users/lvelten/sbeneyto/software/mitoClone")
 library(DT)
 library(SummarizedExperiment)
 snakemake@source("themes_mito_library.R")
 snakemake@source("functions_variant_calling.R")
-
 
 
 # get the directory where Snakefile is stored
@@ -683,322 +676,6 @@ ggsave(raw_umi_comp_plot + theme_umi_coverage_pdf,
 raw_umi_comp_plot
 
 ```
-
-
-# ATAC mitochondrial variants
-
-Bulk ATAC is run in parallel to the scRNAseq libraries. With these data, mitochondrial mutations can be discovered. These can be used as a query to look for mutations in the RNA. Furthermore, they can be used as a corroboration of mutations found in the RNA libraries (e.g. RNA editing or other post-transcriptional processes could lead to false variants in the RNA data, however these will not be detected in ATAC)
-
-```{r}
-
-if(sample_report %in% c("P266_TAPseq", "P266_spiked")){sample_report_atac <- "P266"
-
-
-}else if(sample_report %in% c("P186_high", "P186_low")){
-  
-  sample_report_atac <- "P186"
-  
-}else if(sample_report == "P19003-11"){
-  
-  sample_report_atac <- "P19003_1"
-  
-}else{sample_report_atac <- sample_report}
-
-if(file.exists(paste0(directory, "/../bulk_atac/data/", sample_report_atac, "/variants/variants_table.csv"))){
-
-  atac_variants <- TRUE
-
-  atac_variants_table <- read_csv(paste0(directory, "/../bulk_atac/data/", sample_report_atac,
-                                         "/variants/variants_table.csv")) 
-
-  print(paste0("Bulk ATAC data for ", sample_report_atac, " available"))
-
-
-}else{print(paste0("Bulk ATAC data for ", sample_report_atac, " NOT available"))
-      atac_variants = FALSE}
-
-seurat <- F
-
-```
-
-## Position of the variants
-
-In bulk ATAC any variant in mtDNA can be detected because the mitochondrial genome is free of histones and the coverage is homogeneus. However, in order to detect a variant in RNA it has to fall in a site which is sufficiently covered. Here I show the variants detected in bulk ATAC as red segments in the raw coverage plot of the sample of interest. This gives a feeling of whether it would be possible to call the mutation from the mitochondrial library (e.g. if the mutation occurs in the D-loop of mtDNA it would be impossible to detect in RNA as this region is non-coding).
-
-<br>
-
-```{r eval=atac_variants, include=atac_variants}
-
-# coverage plot comparison
-coverage_mutations_plot <- ggplot(mito_coverage_raw %>% filter(sample == sample_report),
-                              aes(x = position, y = raw_coverage)) +
-                              geom_line(size = 1.05) +
-                              scale_color_manual(values = google_blue) +
-                              geom_segment(data = mt_genes,
-                                             aes(x = start, xend = end,
-                                                 y = max_raw_cvg, yend = max_raw_cvg),
-                                                  size = 2, colour = viridis(15, begin = 0.2)) +
-                              geom_segment(data = mito_primers,
-                                             aes(x = start, xend = end,
-                                                 y = max_raw_cvg, yend = max_raw_cvg),
-                                                  size = 2, colour = "black") +
-                              geom_segment(data = atac_variants_table,
-                                             aes(x = position - 10, xend = position + 10,
-                                                 y = max_raw_cvg, yend = max_raw_cvg),
-                                                  size = 2, colour = "red") +
-                              coord_polar() +
-                              geom_hline(yintercept = c(1, 10, 100, 1000),
-                                          linetype = "dashed",
-                                          alpha = 0.3) +
-                              ylab("Mean raw coverage per cell") +
-                              xlab("Position in the genome") +
-                              theme_raw_coverage
-
-
-
-# save plot
-ggsave(coverage_mutations_plot + theme_raw_coverage_pdf,
-       height = 7, width = 7,
-       filename = paste0(plots_dir, "/coverage_atac_variants.png"))
-
-
-coverage_mutations_plot
-
-```
-
-***
-
-## Coverage of the variants
-
-The following table shows a summary of the variants detected in bulk ATAC as well as the raw coverage in the sample of interest.
-
-<br>
-
-```{r eval=atac_variants, include=atac_variants}
-
-# load variants table
-atac_variants_table <- atac_variants_table %>%
-                        left_join(mito_coverage_raw %>% filter(sample == sample_report)) %>%
-                        dplyr::select(position, REF, ALT, name, af_tcells, af_tumor, raw_coverage, name_mut) %>%
-                        dplyr::rename(mean_coverage = raw_coverage) %>%
-                        mutate(mean_coverage = paste0(round(mean_coverage,0), "X"))
-
-# check if Seurat is available 
-if(file.exists(paste0(directory, "/../gene_expression/data/", sample_report, "/seurat/seurat_projected.rds"))){
-  
-  seurat <- T
-  
-}else{seurat <- F}
-
-
-# display the mutation table
-datatable(atac_variants_table)
-
-
-```
-
-***
-
-## UMAP ATAC variants
-
-Here I plot cells with at least 3 % mutant reads in the ATAC regions
-
-<br>
-
-```{r eval=seurat, include=seurat}
-
-# get info about cells from Seurat
-seurat <- readRDS(paste0(directory, "/../gene_expression/data/", sample_report, 
-                           "/seurat/seurat_projected.rds"))
-
-
-# get M and N matrix for atac variants
-matrix_list <- mito_matrix(seurat, variants = atac_variants_table$name_mut, mito_path = paste0(directory, "/data/"),
-                           name = sample_report)
-
-
-mito_table_list <- lapply(1:ncol(matrix_list$M), function(i){
-  
-  # make umap table
-  atac_mito_table <- data.frame(cell_barcode = rownames(matrix_list[[1]]),
-                              mut = matrix_list[[1]][,i],
-                              ref = matrix_list[[2]][,i],
-                              af = matrix_list[[1]][,i]/(matrix_list[[1]][,i]+matrix_list[[2]][,i])) %>%
-                              mutate(status = case_when(af > 0.1 ~ "mutant", 
-                                                        is.nan(af) ~ "dropout",
-                                                        ref > 0 ~ "reference")) %>% 
-                              pull(status)
-  
-})
-
-# make umap table
-atac_mito_table <- as.matrix(do.call("cbind",mito_table_list))
-colnames(atac_mito_table) <- colnames(matrix_list$M)
-
-atac_mito_table <- atac_mito_table %>% as.data.frame() %>%  
-                      mutate(cell_barcode = rownames(matrix_list$M)) %>%  
-                      pivot_longer(cols = colnames(matrix_list$M), values_to = "status", names_to = "symbol") %>% 
-                      left_join(seurat@meta.data %>% rownames_to_column(var = "cell_barcode")) 
-                              
-                              
-
-# make UMAP showing the variants
-umap_variants <- ggplot(atac_mito_table,aes(x = umapx, y = umapy, color = status)) + 
-                  geom_point(size = 1) +
-                  theme_classic() +
-                  scale_colour_manual(values = setNames(c("gray", bulls_red, dallas_blue, bulls_red, bulls_red),
-                                               c("dropout", "mutant", "reference", "trisomy", "deletion"))) + 
-                  theme(axis.title = element_text(size = 12),
-                        axis.text = element_text(size = 12, color = "black"),
-                        legend.title = element_blank(),
-                        plot.title = element_text(size = 22, hjust = 0.5),
-                        legend.text = element_text(size = 12),
-                        legend.position = "bottom",
-                        strip.text = element_text(size =12)) +
-                  guides(color = guide_legend(override.aes = list(size = 1.5))) +
-                  facet_wrap(vars(symbol), ncol = 1)
-
-
-
-umap_variants
-
-ggsave(umap_variants,
-       filename = file.path(plots_dir, "umap_atac_variants.png"),
-       height = 7*length(colnames(matrix_list$M)), width = 7)
-
-```
-
-
-# Variant discovery 
-
-The following plots illustrate potential mitochondrial variants. The steps are the following:
-
-1. Run mitoClone from blacklist with loose filters to detect many sites which could consitute variants
-2. Apply Fisher's test between the potential variants and T-cells and non-T-cells groups
-3. Plot the distribution of the variants in the projected UMAP
-
-It is worth mentioning that some variants might not be detected due to their presence in both T-cells and non-T-cells. Furthermore, this approach often yields variants which affect very few cells or that are not real. However, it gives a broad overview of potential variants and this can be useful in some patients.
-
-## Quick clustering
-
-Unfiltered variants are shown. This is usually not very informative because the very loose filters all
-
-<br>
-
-```{r variant clustering, fig.height=15}
-
-# load mitochondrial count table (output from snakemake pipeline)
-mito_count_matrix <- readRDS(paste0(directory, "/data/", sample_report,
-                                    "/mito_counts/count_table/", sample_report,
-                                    "_count_table.rds"))
-
-
-# filter out cells which did not pass the quality control filters
-mito_count_matrix <- mito_count_matrix[barcodes[[1]]]
-
-
-# generate a mutationCall object with relatively relaxed filtering parameters
-clones_object <- mutationCallsFromBlacklistCoverage(mito_count_matrix, 
-                                                    min.af = 0.1,
-                                                    lim.cov = 10,
-                                                    min.num.samples = 0.01*length(mito_count_matrix), 
-                                                    universal.var.cells = 0.90*length(mito_count_matrix),
-                                                    max.var.na = 0.9,
-                                                    max.cell.na = 1,
-                                                    binarize = 0.01,
-                                                    min_coverage = 1)
-
-
-quick_cluster_mod(clones_object, binarize = F, sample = sample_report)
-
-
-```
-
-***
-
-## Association tests
-
-I carry out association tests between the variants shown above and T-cell and non-T-cell populations
-
-<br>
-
-```{r association tests, fig.height=15, fig.width=10}
-
-# load metadata from Seurat object
-metadata <- readRDS(paste0(directory, "/../gene_expression/data/", sample_report, "/seurat/seurat_projected.rds"))@meta.data %>% 
-                  rownames_to_column(var = "cell_barcode")
-
-# make ternary table for T cells and non-T cells groups
-ternary_cells <- ternary_tcells(metadata) %>% 
-                  filter(cell_barcode %in% rownames(clones_object@M)) %>% 
-                  dplyr::select(one_of("tcell", "non_tcell", "cell_barcode")) %>% 
-                  column_to_rownames(var = "cell_barcode")
-
-# make association tests with cell types
-fisher_mito <- association_tests(clones_object, ternary_table = ternary_cells)
-
-
-# make qplots from the association tests
-qplots <- make_qplots(fisher_mito)
-
-
-# association plots
-wrap_plots(qplots)
-
-
-```
-
-***
-
-## UMAP variants
-
-Here I plots the 6 variants which are positively associated with non-T-cells and have the highest adjusted p_value
-
-<br>
-
-```{r UMAP variants, fig.width=12, fig.height=10}
-
-# select variants with highest p_value
-if(nrow(fisher_mito$non_tcell) > 5){
-  
-  variants <- fisher_mito$non_tcell[fisher_mito$non_tcell$pval %in% sort(fisher_mito$non_tcell$pval, decreasing = T)[1:6], 1]
-  
-}else{variants <- fisher_mito$non_tcell$name}
-
-# add mitochondrial mutation information to table with UMAP coordinates
-umap_table_mito <- metadata  %>% 
-                    left_join(as.data.frame(clones_object@ternary) %>%
-                                dplyr::select(variants) %>% 
-                                rownames_to_column(var = "cell_barcode") %>% 
-                                mutate_at(vars(variants), rename_ternary)) %>% 
-                    mutate_at(vars(variants), rename_na) %>% 
-                    mutate_at(vars(variants),
-                              function(x)factor(x,levels = c("reference", "mutant", "dropout"))) %>% 
-                    pivot_longer(cols = variants,
-                                 names_to = "symbol", values_to = "status")
-                    
-
-
-# make a list of UMAPs, one per variant
-umap_nucl_mito <- ggplot(umap_table_mito,aes(x = umapx, y = umapy, color = status)) + 
-                  geom_point(size = 1) +
-                  theme_classic() +
-                  scale_colour_manual(values = setNames(c("gray", bulls_red, dallas_blue, bulls_red, bulls_red),
-                                               c("dropout", "mutant", "reference", "trisomy", "deletion"))) + 
-                  theme(axis.title = element_text(size = 12),
-                        axis.text = element_text(size = 12, color = "black"),
-                        legend.title = element_blank(),
-                        plot.title = element_text(size = 22, hjust = 0.5),
-                        legend.text = element_text(size = 12),
-                        legend.position = "bottom",
-                        strip.text = element_text(size =12)) +
-                  guides(color = guide_legend(override.aes = list(size = 1.5))) +
-                  facet_wrap(vars(symbol))
-
-umap_nucl_mito
-
-```
-
 
 # Source
 * <a download="summary_report.Rmd" href="`r base64enc::dataURI(file = params$rmd, mime = 'text/rmd',

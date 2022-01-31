@@ -1,6 +1,5 @@
 ---
-title: "Mutation library report"
-author: "Sergi Beneyto-Calabuig"
+title: "Nuclear SNV library report"
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 params:
   rmd: "summary_report.Rmd"
@@ -18,26 +17,8 @@ editor_options:
 
 <br>
 
-```{r include=FALSE, eval=FALSE}
-
-setwd("~/cluster/project/AML/nuclear_mutations/")
-
-directory <- getwd()
-
-sample <- "P19003_1"
-
-# read with targeted variants information
-variants <- read_csv(file.path(directory, "data/P19003_1/mutation_counts/amplified_variants.csv"))
-
-# read count table
-count_table <- readRDS(file.path(directory, "data/P19003_1/mutation_counts/count_table/P19003_1_count_table.rds"))
-```
-
 
 ```{r, include=FALSE}
-
-# set path to package library
-.libPaths("/nfs/users2/lvelten/sbeneyto/.conda/envs/exome/lib/R/library")
 
 
 # set global chunk settings
@@ -77,7 +58,6 @@ dir.create(plots_dir, showWarnings = F)
 # the name of the sample from which the report is made
 sample <- snakemake@wildcards$patient
 
-
 # read with targeted variants information
 variants <- read_csv(file.path(directory, snakemake@input$variants))
 
@@ -103,7 +83,7 @@ In this patient the following genes were targeted **`r variants$symbol`**.
 
 ## Target genes combined
 
-Here the proportion of reads aligning to the targeted genes is shown as well as to other genomic areas such as exons, non-coding regions of genes (genes), mitochondria and non-coding regions (other). Only reads from cell barcodes present in cell ranger output are included. The full list of barcodes can be found in `r snakemake@input$barcodes`.
+Here the proportion of reads aligning to the targeted genes is shown as well as to other genomic areas such as exons, non-coding regions of genes (genes), mitochondria and non-coding regions (other). Only reads from cell barcodes present in the gene expression libraries are included. The full list of barcodes can be found in `r snakemake@input$barcodes`.
 
 ```{r}
 
@@ -154,7 +134,7 @@ The higher the expression the higher the coverage and also the number of covered
 
 ### Metadata table
 
-For each of the targeted genomic sites the table shows the mean number of raw counts in Anne's samples together with the estimated distance of the mutation to the polyA.
+For each of the targeted genomic sites the table shows the mean expression of the gene as well as the estimated distance from the mutation to the polyA.
 
 <br>
 
@@ -220,28 +200,8 @@ In this plot I show the proportion of reference, mutant and dropout cell for eac
 
 ```{r}
 
-if(sample == "P186"){
-  
-  sample_seurat <- "P186_high"
-  
-}else if(sample == "P19003_1"){
-  
-  sample_seurat <- "P19003-11"
-  
-}else{sample_seurat <- sample}
-
-# if Seurat with high-quality cells exists only show those cells in downstream plots
-if(file.exists(file.path(directory, "../gene_expression/data", sample_seurat, "seurat/seurat_projected.rds"))){
-  
-  barcodes <- colnames(readRDS(file.path(directory, "../gene_expression/data", sample_seurat, "seurat/seurat_projected.rds")))
-  
-  seurat <- T
-  
-}else{barcodes <- count_table$cell_barcode %>% unique()
-      seurat <- F}
-
 # cretate the table with aggreagated values based on gene and mutational status
-status_table <- count_table %>% filter(cell_barcode %in% barcodes) %>%  
+status_table <- count_table %>% 
                   group_by(symbol, status) %>% 
                   dplyr::summarise(count = n(), coverage = mean(umis, na.rm = T)) %>% 
                   mutate(coverage = ifelse(is.nan(coverage), 0, coverage)) %>% 
@@ -320,41 +280,6 @@ scatter_raw_umis
 
 
 ***
-
-# UMAP of variants
-
-Here I show the mutant and reference cells in the projected UMAP. A cell is labelled as mutant if at least one mutant UMI is detected.
-
-<br>
-
-```{r, include=seurat, eval=seurat}
-
-umap_table <- count_table %>% dplyr::select(cell_barcode, symbol, status) %>% 
-                left_join(readRDS(file.path(directory, "../gene_expression/data", 
-                                            sample_seurat, 
-                                            "seurat/seurat_projected.rds"))@meta.data %>% rownames_to_column(var = "cell_barcode"))
-
-# make UMAP with Variants
-umap_variants <-  ggplot(umap_table,
-                         aes(x = umapx, y = umapy, color = factor(status, levels = c("dropout", "reference", "mutant")))) + 
-                          geom_point(data = umap_table %>% filter(status == "dropout"), size = 0.75) +
-                          geom_point(data = umap_table %>% filter(status != "dropout"), size = 1) +
-                          theme_classic() +
-                          scale_colour_manual(values = setNames(c("gray", bulls_red, dallas_blue, bulls_red, bulls_red),
-                                                       c("dropout", "mutant", "reference", "trisomy", "deletion"))) + 
-                          theme(axis.title = element_text(size = 12),
-                                axis.text = element_text(size = 12, color = "black"),
-                                legend.title = element_blank(),
-                                plot.title = element_text(size = 22, hjust = 0.5),
-                                legend.text = element_text(size = 12),
-                                legend.position = "bottom",
-                                strip.text = element_text(size =12)) +
-                          guides(color = guide_legend(override.aes = list(size = 1.5))) +
-                          facet_wrap(vars(symbol))
-  
-umap_variants
-
-```
 
 
 # Source
