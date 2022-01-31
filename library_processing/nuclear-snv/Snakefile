@@ -1,4 +1,4 @@
-## rules to process mutation library
+envs/nuclear_library.yml## rules to process mutation library
 
 ### input, output and shell paths are all relative to the project directory ###
 

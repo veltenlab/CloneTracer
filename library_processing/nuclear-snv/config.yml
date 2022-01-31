@@ -2,27 +2,24 @@
 
 # patient sample ids
 patient_ids:
-  [P266_TAPseq, P266_spiked, AKLK1, AKLK2, AKLW1, AKLW2, AKLA1b, AKLA2, P80, P324, P186, P361, P19003_1, P221, P270]
+  [P1]
 
 # estimated number of cells per sample, for which dge data should be extracted.
 cell_numbers:
-  AKLW1: 8000
+  P1: 8000
 
 # cell and umi barcode base positions in barcode reads for each sample. the first element of the
 # array is the cell barcode range, while the second is the UMI barcode range.
 bc_structure:
   10x_v3: [1-16, 17-28]
 
-
 # reference files for alignment and annotation
 genome_references:
-  genome_dir: ../../../sbeneyto/alignment_references/GRCh38/genomeDir
-  gtf: ../../../sbeneyto/alignment_references/GRCh38/Homo_sapiens.GRCh38.100.chr.gtf
-  fasta: ../../../sbeneyto/alignment_references/GRCh38/Homo_sapiens.GRCh38.dna.primary_assembly.fasta
-  dict: ../../../sbeneyto/alignment_references/GRCh38/Homo_sapiens.GRCh38.dna.primary_assembly.dict
-  refFlat: ../../../sbeneyto/alignment_references/GRCh38/Homo_sapiens.GRCh38.dna.primary_assembly.refFlat
-  bwa_genome: ../../../sbeneyto/alignment_references/hg38/hg38.fa
-
+  genome_dir: */GRCh38/genomeDir
+  gtf: */Homo_sapiens.GRCh38.100.chr.gtf
+  fasta: */Homo_sapiens.GRCh38.dna.primary_assembly.fasta
+  dict: */Homo_sapiens.GRCh38.dna.primary_assembly.dict
+  refFlat: */Homo_sapiens.GRCh38.dna.primary_assembly.refFlat
 
 # parameters read alignment ------------------------------------------------------------------------------
 tag_cell_barcodes:
