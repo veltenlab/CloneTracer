@@ -1,8 +1,5 @@
 # Here themes and other ggplot specifications are specified for bulk ATAC plots as well as colours
 
-library(RColorBrewer)
-library(tidyverse)
-
 google_red <- "#DB4437"
 google_blue <- "#4285F4"  
 google_yellow <- "#F4B400"

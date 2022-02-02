@@ -15,9 +15,9 @@ bc_structure:
 
 # reference files for alignment and annotation
 genome_references:
-  genome_dir: */GRCh38/genomeDir
+  fasta: */Homo_sapiens.GRCh38.dna.primary_assembly.fasta  
+  genome_dir: "*/GRCh38/genomeDir"
   gtf: */Homo_sapiens.GRCh38.100.chr.gtf
-  fasta: */Homo_sapiens.GRCh38.dna.primary_assembly.fasta
   dict: */Homo_sapiens.GRCh38.dna.primary_assembly.dict
   refFlat: */Homo_sapiens.GRCh38.dna.primary_assembly.refFlat
 

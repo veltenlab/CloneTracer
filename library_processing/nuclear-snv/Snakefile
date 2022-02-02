@@ -1,4 +1,4 @@
-envs/nuclear_library.yml## rules to process mutation library
+## rules to process nuclear SNV library
 
 ### input, output and shell paths are all relative to the project directory ###
 
@@ -25,7 +25,6 @@ rule all:
 
 # this is necessary to avoid ambiguous rules
 wildcard_constraints:
-    patient_exome='|'.join(config["patient_exome"]),
     patient='|'.join(config["patient_ids"])
 
 # workflow rules -----------------------------------------------------------------------------------

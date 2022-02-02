@@ -2,8 +2,18 @@
 
 # convert count table from pickle python object to dataframe saved as RDS
 
-# set the library folder
-.libPaths("/nfs/users2/lvelten/sbeneyto/.conda/envs/exome/lib/R/library")
+
+message("Checking if required packages are installed")
+for (i in c("optparse","tidyverse", "reticulate")){
+  
+  if(!requireNamespace(i, quietly = TRUE)){
+    
+      
+    install.packages(i, repos="https://ftp.fau.de/cran/")
+      
+  }
+  
+}
 
 
 # parse command line arguments ---------------------------------------------------------------------
