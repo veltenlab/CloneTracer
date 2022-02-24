@@ -17,26 +17,26 @@ editor_options:
 
 <br>
 
-```{r, include=FALSE, eval=FALSE}
-
-directory <- "~/cluster/project/AML/git/CloneTracer/library_processing/mitochondria/"
-
-setwd(directory)
-
-sample_report <- "P186_high"
-
-plots_dir <- file.path(directory, "results/summary_reports", sample_report, "plots")
-
-source("scripts/themes_mito_library.R")
-source("scripts/functions_variant_calling.R")
-
-
-```
-
-
 
 ```{r, include=FALSE}
 
+message("Checking if required packages are installed")
+for (i in c("optparse","BiocManager", "GenomicRanges", "tidyverse", "knitr", "patchwork", "devtools",
+            "vcfR", "RColorBrewer", "viridis", "DT", "SummarizedExperiment")){
+  
+  if(!requireNamespace(i, quietly = TRUE)){
+  
+    
+    if(i %in% c("optparse", "BiocManager", "tidyverse", "RColorBrewer", "viridis",
+                "DT", "vcfR", "knitr", "patchwork", "devtools")){
+      
+      install.packages(i, repos="https://ftp.fau.de/cran/")
+      
+    }else{BiocManager::install(i)}
+    
+  }
+  
+}
 
 # set global chunk settings
 knitr::opts_chunk$set(echo = FALSE)
@@ -45,7 +45,6 @@ knitr::opts_chunk$set(warning = FALSE)
 
 #load the required packages
 library(tidyverse)
-library(ggplot2)
 library(patchwork)
 library(GenomicRanges)
 library(vcfR)
@@ -73,68 +72,34 @@ dir.create(plots_dir, recursive = T)
 # the name of the sample from which the report is made
 sample_report <- snakemake@wildcards$patient
 
+# get barcodes from gene expression library
+barcodes <- read_tsv(list.files(paste0(directory, "/raw_data/", sample_report),
+              pattern = "barcodes.tsv", full.names = T), col_names = F) %>% pull(X1)
 
-# get how many samples should be included in the report. if none specified it takes P266_TAPseq as a reference
-samples <- c(sample_report, "AKLA1b")
-
-# get names of samples to compare with
-comp_samples <- samples[!samples == sample_report]
-
-
-# get all coverage files
-coverage_data <- sapply(1:length(samples), function(i){
-
-  list.files(paste0(directory, "/data/", samples[i], "/mito_counts/count_table"),
+# get summarized experiment object with coverage information
+coverage_data <- list.files(paste0(directory, "/data/", sample_report, "/mito_counts/count_table"),
              pattern = paste0("sum_experiment.rds"), full.names = T)
 
-})
+
+# get reads_cell file
+reads_cell <- list.files(paste0(directory, "/data/", sample_report, "/mito_counts"),
+                    pattern = "*reads_cells*", full.names = T)
 
 
-# get all reads_cell files
-reads_cell_data <- sapply(1:length(samples), function(i){
-
-  list.files(paste0(directory, "/data/", samples[i], "/mito_counts"),
-             pattern = "*reads_cells*", full.names = T)
-
-})
-
-# get alignment stats files
-align_stats_files <- sapply(1:length(samples), function(i){
-  
-    list.files(paste0(directory, "/data/", samples[i], "/align_reads"),
+# get alignment stats
+align_stats <- list.files(paste0(directory, "/data/", sample_report, "/align_reads"),
                pattern = "star.Log", full.names = T)
-  
-})
 
-barcodes <- list()
+# load data from 10x default and reference mitochondrial library (P3)
+#ref_data <- readRDS(url(""))
 
-# check if Seurat object exists
-if(file.exists(paste0(directory, "/../gene_expression/data/", sample_report, "/seurat/seurat_projected.rds"))){
-  
-  barcodes[[sample_report]] <- colnames(readRDS(paste0(directory, "/../gene_expression/data/", sample_report, "/seurat/seurat_projected.rds")))
-  
-  b <- T
-  
-}else{b <- F}
-
-# add barcodes which passed QC from control sample
-if (b){
-  
-  barcodes[["AKLA1b"]] <- colnames(readRDS(paste0(directory, "/../clonal_analysis_joint/AKLA1b/data/AKLA1b_seurat.rds")))
-    
-}
-
-
+ref_data <- readRDS("/home/sbeneyto/cluster/project/AML/git/CloneTracer/library_processing/mitochondria/data/ref_data.rds")
 
 
 ```
 
 
 This is the summary report for the single-cell mitochondrial library of sample **`r snakemake@wildcards$patient`**.
-
-
-Data from the following samples will be included in the report for comparison: **`r snakemake@params$samples`**.
-
 
 # Proportion of reads to chrM
 
@@ -144,31 +109,21 @@ Here the proportion of reads aligning to the mitochondrial genome is shown. The 
 
 ```{r reads_mito}
 
-# put alignment stats in one table
-align_stats <- lapply(1:length(samples), function(i){
+# get percentage of aligned reads from star summary report
+aligned_reads <- as.double(gsub(".+\t", "",read_lines(align_stats)[[9]]))
 
+# get total number of reads
+total_reads <- as.double(gsub(".+\t", "",read_lines(align_stats)[[6]]))
 
-  # get percentage of aligned reads from star summary report
-  aligned_reads <- as.double(gsub(".+\t", "",read_lines(align_stats_files[i])[[9]]))
-  
-  
-  # get total number of reads
-  total_reads <- as.double(gsub(".+\t", "",read_lines(align_stats_files[i])[[6]]))
-
-
-  table <- data.frame(type = c("mitochondria", "other"),
-                      nreads = c(aligned_reads, total_reads-aligned_reads)) %>%
-                      mutate(percentage = nreads/sum(nreads)*100,
-                      sample = samples[i],
-                      type = factor(type, levels = c("other", "mitochondria")))
-
-
-})
-
+table <- data.frame(type = c("mitochondria", "other"),
+                    nreads = c(aligned_reads, total_reads-aligned_reads)) %>%
+                    mutate(percentage = nreads/sum(nreads)*100,
+                    sample = sample_report,
+                    type = factor(type, levels = c("other", "mitochondria")))
 
 # put data into a dataframe
-align_stats <- do.call("bind_rows", align_stats) %>% 
-                mutate(sample = factor(sample, levels = c(sample_report, comp_samples)))
+align_stats <- bind_rows(table, ref_data$align_stats) %>% 
+                mutate(sample = factor(sample, levels = c(sample_report, "example_library(P3)")))
 
 
 # plot with alignment locations
@@ -208,88 +163,62 @@ To asses the quality of the library the coverage in the mtDNA is shown. Normalis
 
 ```{r normalised coverage}
 
-# get coordinates of the mitochondrial genes to show in the plot
-mt_genes <- read_csv(paste0(directory, "/results/reference_data/mt_genes_coordinates.csv"))
-
-
-# load position of mitochondrial primers
-mito_primers <- read_csv(paste0(directory, "/results/reference_data/mt_primers_coordinates.csv"))
-
-
-# load coverage data from MUTAseq and initial mitoTAP tests
-mito_coverage_ref <- read_csv(paste0(directory, "/results/reference_data/MT_coverage_mutaseq_tests.csv")) %>%
-                      filter(sample %in% c("Lib2 outer", "MutaSeq", "10x default")) %>%
-                      dplyr::select(-reference) %>%
-                      dplyr::mutate(sample = if_else(sample == "Lib2 outer", "K562 mitoTAP", sample),
-                             sample = if_else(sample == "MutaSeq", "MutaSeq v1", sample))
-
-
 # load total reads/cell for all cell barcodes (unfiltered)
-reads_cell <- lapply(1:length(samples), function(i){
-
-  read_csv(reads_cell_data[i], col_names = F) %>%
+reads_cell <- read_csv(reads_cell, col_names = F) %>%
                 separate("X1", into = c("total_reads", "cell_barcode"), sep = " ") %>%
-                filter(cell_barcode %in% barcodes[[i]]) %>% 
+                filter(cell_barcode %in% barcodes) %>% 
                 mutate(total_reads = as.integer(total_reads),
-                       sample = samples[i],
+                       sample = sample_report,
                        cell_barcode = gsub("CB:Z:(.+)$", "\\1", cell_barcode))
-
-})
-
-
-names(reads_cell) <- samples
 
 
 # convert coverage table to data frame and tidy
-mito_coverage <- lapply(1:length(samples), function(i){
+mito_object <- readRDS(coverage_data)
 
-    mito_object <- readRDS(coverage_data[i])
-
-    mito_object <- assays(mito_object)$nUMIs %>% as.matrix() %>%
-                    as.data.frame() %>%
-                    rownames_to_column(var = "position") %>%
-                    pivot_longer(names_to = "cell_barcode", values_to = "raw_coverage",
-                                 cols = -position) %>%
-                    filter(cell_barcode %in% barcodes[[i]]) %>% 
-                    left_join(reads_cell[[i]]) %>%
-                    mutate(norm_coverage = raw_coverage/total_reads) %>%
-                    group_by(position) %>%
-                    dplyr::summarise(mean_coverage = mean(norm_coverage, na.rm = T),
-                                     raw_coverage = mean(raw_coverage, na.rm = T),
-                              .groups = "keep") %>%
-                    ungroup() %>%
-                    mutate(sample = samples[i],
-                           position = as.integer(position)) %>%
-                    filter(is.na(position) == F) %>%
-                    arrange(position) %>%
-                    mutate(smooth_coverage = runmed(mean_coverage, 31),
-                           raw_coverage = runmed(raw_coverage, 31)) %>%
-                    dplyr::select(position, raw_coverage, mean_coverage, smooth_coverage, sample)
-
-})
+mito_object <- assays(mito_object)$nUMIs %>% as.matrix() %>%
+                as.data.frame() %>%
+                rownames_to_column(var = "position") %>%
+                pivot_longer(names_to = "cell_barcode", values_to = "raw_coverage",
+                             cols = -position) %>%
+                filter(cell_barcode %in% barcodes) %>% 
+                left_join(reads_cell) %>%
+                mutate(norm_coverage = raw_coverage/total_reads) %>%
+                group_by(position) %>%
+                dplyr::summarise(mean_coverage = mean(norm_coverage, na.rm = T),
+                                 raw_coverage = mean(raw_coverage, na.rm = T),
+                          .groups = "keep") %>%
+                ungroup() %>%
+                mutate(sample = sample_report,
+                       position = as.integer(position)) %>%
+                filter(is.na(position) == F) %>%
+                arrange(position) %>%
+                mutate(smooth_coverage = runmed(mean_coverage, 31),
+                       raw_coverage = runmed(raw_coverage, 31)) %>%
+                dplyr::select(position, raw_coverage, mean_coverage, smooth_coverage, sample)
 
 
 # bind reference and sample coverage tables
-mito_coverage_norm <- bind_rows(mito_coverage_ref,
-                                do.call("bind_rows", mito_coverage) %>% dplyr::select(-raw_coverage)) %>%
+mito_coverage_norm <- bind_rows(ref_data$cvg_10x,
+                                ref_data$cvg_mito_P3,
+                                mito_object) %>% dplyr::select(-raw_coverage) %>%
                                 mutate(sample = factor(sample))
 
 
 # get the max coverage
-max_norm_cvg <- mito_coverage_norm %>% pull(smooth_coverage) %>% max() + 0.00001
+max_norm_cvg <- mito_coverage_norm %>% pull(smooth_coverage) %>% max() + 0.01
 
 
-# plot norm coverage compared to default 10x and MutaSeq v1
-norm_coverage_plot <- ggplot(mito_coverage_norm %>% filter(sample %in% c("MutaSeq v1", sample_report)),
+# plot norm coverage compared to example mitochondrial library from P3
+norm_coverage_plot <- ggplot(mito_coverage_norm %>% filter(sample != "10x default"),
                             aes(x = position, y = smooth_coverage, colour = sample)) +
                             geom_line(size = 1.05)  +
-                            scale_color_manual(values = setNames(c(google_blue, google_red, "black"),
-                                                                 c(sample_report, "10x default", "MutaSeq v1")))+
-                            geom_segment(data = mt_genes,
+                            scale_color_manual(values = setNames(c(google_blue, google_red),
+                                                                 c(sample_report, "example_library(P3)")))+
+                            geom_segment(data = ref_data$mt_genes,
                                          aes(x = start, xend = end,
                                              y = max_norm_cvg, yend = max_norm_cvg),
                                            size = 2, colour = viridis(15, begin = 0.2)) +
-                            geom_segment(data = mito_primers,
+                            geom_segment(data = ref_data$mito_primers,
                                         aes(x = start, xend = end,
                                            y = max_norm_cvg, yend = max_norm_cvg),
                                            size = 2, colour = "black") +
@@ -319,29 +248,25 @@ norm_coverage_plot
 ```{r raw coverage}
 
 # make table with raw coverage
-mito_coverage_raw <- bind_rows(readRDS(paste0(directory, "/results/reference_data/mutaseq_coverage_table.RDS"))$raw %>%
-                                filter(Method == "MutaSeq") %>%
-                                dplyr::rename(position = "bp", raw_coverage = "score",
-                                              sample = "Method") %>%
-                                mutate(sample = "MutaSeq v1") %>%
-                                dplyr::select(-chr),
-                               do.call("bind_rows",mito_coverage) %>% dplyr::select(position, raw_coverage, sample))
+mito_coverage_raw <- bind_rows(ref_data$cvg_mito_P3,
+                               mito_object %>% dplyr::select(position, raw_coverage, sample))
 
 
 # get the max coverage
-max_raw_cvg <- mito_coverage_raw %>% pull(raw_coverage) %>% max() + 3000
+max_raw_cvg <- mito_coverage_raw %>% pull(raw_coverage) %>% max() + 1500
 
 
 # plot raw coverage
-raw_coverage_plot <- ggplot(mito_coverage_raw %>% filter(sample %in% c("MutaSeq v1", sample_report)),
+raw_coverage_plot <- ggplot(mito_coverage_raw,
                             aes(x = position, y = raw_coverage, colour = sample)) +
                             geom_line(size = 1.05) +
-                            scale_color_manual(values = setNames(c("black", google_blue), c("MutaSeq v1",sample_report))) +
-                            geom_segment(data = mt_genes,
+                            scale_color_manual(values = setNames(c(google_red, google_blue), 
+                                                                 c("example_library(P3)",sample_report))) +
+                            geom_segment(data = ref_data$mt_genes,
                                          aes(x = start, xend = end,
                                              y = max_raw_cvg, yend = max_raw_cvg),
-                                             size = 2, colour = viridis(15, begin = 0.2)) +
-                            geom_segment(data = mito_primers,
+                                           size = 2, colour = viridis(15, begin = 0.2)) +
+                            geom_segment(data = ref_data$mito_primers,
                                         aes(x = start, xend = end,
                                            y = max_raw_cvg, yend = max_raw_cvg),
                                            size = 2, colour = "black") +
@@ -368,53 +293,45 @@ In the analysis duplicated reads with the same UMI and end position were collaps
 
 ```{r reads/UMI}
 
-depth_data <- lapply(1:length(samples), function(i){
-  
-  mito_object <- readRDS(coverage_data[i])
-  
-  avg_reads <- (mito_object@assays@data$reads_umi) %>% as.matrix() %>% 
-                    as.data.frame() %>% 
-                    rownames_to_column(var = "position") %>%
-                    pivot_longer(names_to = "cell_barcode", values_to = "nreads",
-                                 cols = -position) %>%
-                    filter(cell_barcode %in% barcodes[[i]]) %>% 
-                    left_join(reads_cell[[i]]) %>%
-                    mutate(norm_avg_reads = nreads/total_reads) %>%
-                    group_by(position) %>%
-                    dplyr::summarise(norm_coverage = mean(norm_avg_reads, na.rm = T),
-                                     raw_coverage = mean(nreads, na.rm = T),
-                              .groups = "keep") %>%
-                    ungroup() %>%
-                    mutate(sample = samples[i],
-                           position = as.integer(position)) %>%
-                    filter(is.na(position) == F) %>%
-                    arrange(position) %>%
-                    mutate(smooth_coverage = runmed(norm_coverage, 31),
-                           raw_coverage = runmed(raw_coverage, 31)) %>%
-                    dplyr::select(position, raw_coverage, norm_coverage, smooth_coverage, sample)          
-  
-  avg_reads
-  
-})
+mito_object <- readRDS(coverage_data)
 
-reads_umi <- do.call("bind_rows", depth_data)
+avg_reads <- mito_object@assays@data$reads_umi %>% as.matrix() %>% 
+                  as.data.frame() %>% 
+                  rownames_to_column(var = "position") %>%
+                  pivot_longer(names_to = "cell_barcode", values_to = "nreads",
+                               cols = -position) %>%
+                  filter(cell_barcode %in% barcodes) %>% 
+                  left_join(reads_cell) %>%
+                  mutate(norm_avg_reads = nreads/total_reads) %>%
+                  group_by(position) %>%
+                  dplyr::summarise(norm_coverage = mean(norm_avg_reads, na.rm = T),
+                                   raw_coverage = mean(nreads, na.rm = T),
+                            .groups = "keep") %>%
+                  ungroup() %>%
+                  mutate(sample = sample_report,
+                         position = as.integer(position)) %>%
+                  filter(is.na(position) == F) %>%
+                  arrange(position) %>%
+                  mutate(smooth_coverage = runmed(norm_coverage, 31),
+                         raw_coverage = runmed(raw_coverage, 31)) %>%
+                  dplyr::select(position, raw_coverage, norm_coverage, smooth_coverage, sample)   
 
-
+reads_umi <- bind_rows(avg_reads, ref_data$reads_umi)
+  
 # get the max coverage
 max_umi_cvg <- reads_umi %>% pull(raw_coverage) %>% max() + 30
 
-
 # plot raw coverage
-raw_umi_cvg_plot <- ggplot(reads_umi %>% filter(sample %in% c(sample_report)),
+raw_umi_cvg_plot <- ggplot(reads_umi,
                             aes(x = position, y = raw_coverage, colour = sample)) +
                             geom_line(size = 1.05) +
-                            scale_color_manual(values = setNames(c("black", google_blue), 
-                                                                 c("MutaSeq v1",sample_report))) +
-                            geom_segment(data = mt_genes,
+                            scale_color_manual(values = setNames(c(google_red, google_blue), 
+                                                                 c("example_library(P3)",sample_report))) +
+                            geom_segment(data = ref_data$mt_genes,
                                          aes(x = start, xend = end,
                                              y = max_umi_cvg, yend = max_umi_cvg),
                                              size = 2, colour = viridis(15, begin = 0.2)) +
-                            geom_segment(data = mito_primers,
+                            geom_segment(data = ref_data$mito_primers,
                                         aes(x = start, xend = end,
                                            y = max_umi_cvg, yend = max_umi_cvg),
                                            size = 2, colour = "black") +
@@ -480,76 +397,68 @@ Here I show the average base quality/cell over the mitochondrial genome.
 
 ```{r base quality}
 
-base_qual <- lapply(1:length(samples), function(i){
+qual_list <- lapply(1:length(c("A_qual", "T_qual", "C_qual", "G_qual")), function(j){
   
-  mito_object <- readRDS(coverage_data[i])
+  nt <- c("A_qual", "T_qual", "C_qual", "G_qual")[j]
   
-  qual_list <- lapply(1:length(c("A_qual", "T_qual", "C_qual", "G_qual")), function(j){
-    
-    nt <- c("A_qual", "T_qual", "C_qual", "G_qual")[j]
-    
-    mean_qual <- mito_object@assays@data[[nt]] %>% as.matrix() %>% 
-                    as.data.frame() %>% 
-                    rownames_to_column(var = "position") %>%
-                    pivot_longer(names_to = "cell_barcode", values_to = "qual",
-                                 cols = -position) %>%
-                    filter(cell_barcode %in% barcodes[[i]]) %>% 
-                    filter(qual > 0) %>% 
-                    group_by(position) %>%
-                    dplyr::summarise(avg_qual = mean(qual, na.rm = T),
-                              .groups = "keep") %>%
-                    ungroup() %>%
-                    mutate(position = as.integer(position)) %>%
-                    filter(is.na(position) == F) %>%
-                    arrange(position) 
-    
-    colnames(mean_qual) <- c("position", nt)
-    
-    mean_qual
-  })
+  mean_qual <- mito_object@assays@data[[nt]] %>% as.matrix() %>% 
+                  as.data.frame() %>% 
+                  rownames_to_column(var = "position") %>%
+                  pivot_longer(names_to = "cell_barcode", values_to = "qual",
+                               cols = -position) %>%
+                  filter(cell_barcode %in% barcodes) %>% 
+                  filter(qual > 0) %>% 
+                  group_by(position) %>%
+                  dplyr::summarise(avg_qual = mean(qual, na.rm = T),
+                            .groups = "keep") %>%
+                  ungroup() %>%
+                  mutate(position = as.integer(position)) %>%
+                  filter(is.na(position) == F) %>%
+                  arrange(position) 
   
-  qual_table <- tibble(position = 1:16569) %>% 
-                  left_join(qual_list[[1]]) %>% 
-                  left_join(qual_list[[2]]) %>% 
-                  left_join(qual_list[[3]]) %>% 
-                  left_join(qual_list[[4]]) %>% 
-                  pivot_longer(cols = -position, 
-                               names_to = "nucleotide", values_to = "qual") %>% 
-                  group_by(position) %>% 
-                  dplyr::summarise(avg_qual = max(qual, na.rm = T),
-                                   .groups = "keep") %>% 
-                  ungroup() %>% 
-                  mutate(avg_qual = ifelse(is.nan(avg_qual) | is.na(avg_qual), 0, avg_qual),
-                         sample = samples[i],
-                         avg_qual = runmed(avg_qual, 31)) 
+  colnames(mean_qual) <- c("position", nt)
   
+  mean_qual
 })
 
-base_qual_table <- do.call("bind_rows", base_qual)
+qual_table <- tibble(position = 1:16569) %>% 
+                    left_join(qual_list[[1]]) %>% 
+                    left_join(qual_list[[2]]) %>% 
+                    left_join(qual_list[[3]]) %>% 
+                    left_join(qual_list[[4]]) %>% 
+                    pivot_longer(cols = -position, 
+                                 names_to = "nucleotide", values_to = "qual") %>% 
+                    group_by(position) %>% 
+                    dplyr::summarise(avg_qual = max(qual, na.rm = T),
+                                     .groups = "keep") %>% 
+                    ungroup() %>% 
+                    mutate(avg_qual = ifelse(is.nan(avg_qual) | is.na(avg_qual), 0, avg_qual),
+                           sample = sample_report,
+                           avg_qual = runmed(avg_qual, 31)) 
 
+base_qual_table <- bind_rows(qual_table, ref_data$base_qual)
 
 # get the max quality
 max_qual <- base_qual_table %>% pull(avg_qual) %>% max() + 5
 
-
 # plot raw coverage
-qual_plot <- ggplot(base_qual_table %>% filter(sample %in% c(sample_report)),
-                            aes(x = position, y = avg_qual, colour = sample)) +
-                            geom_line(size = 1.05) +
-                            scale_color_manual(values = setNames(c(google_blue), 
-                                                                 c(sample_report))) +
-                            geom_segment(data = mt_genes,
-                                         aes(x = start, xend = end,
-                                             y = max_qual, yend = max_qual),
-                                             size = 2, colour = viridis(15, begin = 0.2)) +
-                            geom_segment(data = mito_primers,
-                                        aes(x = start, xend = end,
-                                           y = max_qual, yend = max_qual),
-                                           size = 2, colour = "black") +
-                            coord_polar() +
-                            ylab("Average base quality") +
-                            xlab("Position in the genome") + 
-                            theme_base_qual
+qual_plot <- ggplot(base_qual_table,
+                      aes(x = position, y = avg_qual, colour = sample)) +
+                      geom_line(size = 1.05) +
+                      scale_color_manual(values = setNames(c(google_blue, google_red), 
+                                                           c(sample_report, "example_library(P3)"))) +
+                      geom_segment(data = ref_data$mt_genes,
+                                   aes(x = start, xend = end,
+                                       y = max_qual, yend = max_qual),
+                                       size = 2, colour = viridis(15, begin = 0.2)) +
+                      geom_segment(data = ref_data$mito_primers,
+                                  aes(x = start, xend = end,
+                                     y = max_qual, yend = max_qual),
+                                     size = 2, colour = "black") +
+                      coord_polar() +
+                      ylab("Average base quality") +
+                      xlab("Position in the genome") + 
+                      theme_base_qual
 
 
 # save the plot
@@ -563,125 +472,7 @@ qual_plot
 ```
 
 
-## Comparison across samples
-
-
-### Raw coverage
-
-<br>
-
-```{r}
-
-
-# plot raw coverage for all selected samples
-raw_coverage_comp_plot <- ggplot(mito_coverage_raw %>% filter(!sample %in% "MutaSeq v1"),
-                            aes(x = position, y = raw_coverage, colour = sample)) +
-                            geom_line(size = 1.05) +
-                            scale_color_manual(values = setNames(c(google_blue, col_cvg_comparison[2:length(samples)]), 
-                                                                 c(sample_report, samples[2:length(samples)]))) +
-                            geom_segment(data = mt_genes,
-                                         aes(x = start, xend = end,
-                                             y = max_raw_cvg, yend = max_raw_cvg),
-                                             size = 2, colour = viridis(15, begin = 0.2)) +
-                            geom_segment(data = mito_primers,
-                                        aes(x = start, xend = end,
-                                           y = max_raw_cvg, yend = max_raw_cvg),
-                                           size = 2, colour = "black") +
-                            coord_polar() +
-                            ylab("Raw coverage (Number of UMIs)") +
-                            xlab("Position in the genome") +
-                            theme_raw_coverage
-
-
-
-raw_coverage_comp_plot
-
-
-
-```
-
-***
-
-### Normalised coverage
-
-<br>
-
-```{r}
-
-
-# plot norm coverage for all selected samples
-norm_coverage_comp_plot <- ggplot(mito_coverage_norm %>% filter(!sample %in% c("MutaSeq v1", "10x default", "K562 mitoTAP")),
-                            aes(x = position, y = smooth_coverage, colour = sample)) +
-                            geom_line(size = 1.05) +
-                            scale_color_manual(values = setNames(c(google_blue, col_cvg_comparison[2:length(samples)]), 
-                                                                 c(sample_report, samples[2:length(samples)]))) +
-                            geom_segment(data = mt_genes,
-                                         aes(x = start, xend = end,
-                                             y = max_norm_cvg, yend = max_norm_cvg),
-                                             size = 2, colour = viridis(15, begin = 0.2)) +
-                            geom_segment(data = mito_primers,
-                                        aes(x = start, xend = end,
-                                           y = max_norm_cvg, yend = max_norm_cvg),
-                                           size = 2, colour = "black") +
-                            coord_polar() +
-                            ylab("Normalised coverage") +
-                            xlab("Position in the genome") +
-                            theme_norm_coverage
-
-
-
-# save the plot
-ggsave((raw_coverage_comp_plot + theme_raw_coverage_pdf) +
-         (norm_coverage_comp_plot + theme_norm_coverage_pdf),
-         filename = file.path(plots_dir, "coverage_sample_comparison.png"),
-         height = 7, width = 15)
-
-
-norm_coverage_comp_plot
-
-```
-
-***
-
-### Reads/UMI
-
-```{r}
-
-# plot raw coverage
-raw_umi_comp_plot <- ggplot(reads_umi,
-                            aes(x = position, y = raw_coverage, colour = sample)) +
-                            geom_line(size = 1.05) +
-                            scale_color_manual(values = setNames(c(google_blue, col_cvg_comparison[2:length(samples)]), 
-                                                                 c(sample_report, samples[2:length(samples)]))) +
-                            geom_segment(data = mt_genes,
-                                         aes(x = start, xend = end,
-                                             y = max_umi_cvg, yend = max_umi_cvg),
-                                             size = 2, colour = viridis(15, begin = 0.2)) +
-                            geom_segment(data = mito_primers,
-                                        aes(x = start, xend = end,
-                                           y = max_umi_cvg, yend = max_umi_cvg),
-                                           size = 2, colour = "black") +
-                            coord_polar() +
-                            ylab("Average reads/UMI") +
-                            xlab("Position in the genome") +
-                            theme_umi_coverage
-
-
-# save the plot
-ggsave(raw_umi_comp_plot + theme_umi_coverage_pdf,
-       filename = file.path(plots_dir, "reads_umi_comparison.png"),
-       height = 7, width = 7)
-
-
-raw_umi_comp_plot
-
-```
-
 # Source
 * <a download="summary_report.Rmd" href="`r base64enc::dataURI(file = params$rmd, mime = 'text/rmd',
     encoding = 'base64')`">R Markdown source file (to produce this document)</a>
-
-```{r}
-save.image()
-```
 
