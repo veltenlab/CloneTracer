@@ -1,0 +1,97 @@
+# set cluster resources for processing of mitochondrial library ===================
+
+__resources__:
+  gpu:
+    - "gpu"
+    - "nvidia_gpu"
+
+
+__default__:
+  error: log_files/stderr.txt
+  output: log_files/stdout.txt
+  queue: short-sl7
+  pe: smp 2
+  walltime: 04:00:00
+  virtual_free: 40G
+
+# resources for the alignment step with STAR
+star_align:
+  error: log_files/stderr.txt
+  output: log_files/stdout.txt
+  queue: long-sl7
+  pe: smp 8
+  walltime: 10:00:00
+  virtual_free: 90G
+
+reformat_cellbarcode:
+  error: log_files/stderr.txt
+  output: log_files/stdout.txt
+  queue: long-sl7
+  pe: smp 4
+  walltime: 20:00:00
+  virtual_free: 50G
+
+split_bam:
+  error: log_files/stderr.txt
+  output: log_files/stdout.txt
+  queue: long-sl7
+  pe: smp 8
+  walltime: 20:00:00
+  virtual_free: 50G
+
+# resources to process single-cell BAM files -------------------------------------------
+consensus_read:
+  error: log_files/stderr.txt
+  output: log_files/stdout.txt
+  queue: short-sl7
+  pe: smp 1
+  walltime: 04:00:00
+  virtual_free: 10G
+
+combine_bams:
+  error: log_files/stderr.txt
+  output: log_files/stdout.txt
+  queue: short-sl7
+  pe: smp 8
+  walltime: 04:00:00
+  virtual_free: 40G
+
+align_deduplicated:
+  error: log_files/stderr.txt
+  output: log_files/stdout.txt
+  queue: long-sl7
+  pe: smp 10
+  walltime: 12:00:00
+  virtual_free: 80G
+
+split_count_bams:
+  error: log_files/stderr.txt
+  output: log_files/stdout.txt
+  queue: long-sl7
+  pe: smp 8
+  walltime: 10:00:00
+  virtual_free: 50G
+
+count_reads:
+  error: log_files/stderr.txt
+  output: log_files/stdout.txt
+  queue: short-sl7
+  pe: smp 1
+  walltime: 04:00:00
+  virtual_free: 30G
+
+make_count_table:
+  error: log_files/stderr.txt
+  output: log_files/stdout.txt
+  queue: long-sl7
+  pe: smp 10
+  walltime: 20:00:00
+  virtual_free: 60G
+
+summary_report:
+  error: log_files/stderr.txt
+  output: log_files/stdout.txt
+  queue: short-sl7
+  pe: smp 2
+  walltime: 04:00:00
+  virtual_free: 60G

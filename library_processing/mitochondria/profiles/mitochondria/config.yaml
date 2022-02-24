@@ -1,0 +1,9 @@
+cluster: "sge-submit.py"
+latency-wait: 120
+use-conda: true
+keep-going: true
+jobs: 100
+max-jobs-per-second: 100
+max-status-checks-per-second: 100
+rerun-incomplete: true
+allow-ambiguity: true
