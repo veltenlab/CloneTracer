@@ -8,8 +8,8 @@ import glob
 
 rule all:
     input:
-        expand("data/{patient_exome}/mutation_counts/amplified_variants.csv",
-               patient_exome = config["patient_exome"]),
+        expand("raw_data/{patient}/selected_variants.csv",
+               patient = config["patient_ids"]),
         expand("data/{patient}/mutation_counts/reads_cell.txt",
                patient = config["patient_ids"]),
         expand("data/{patient}/align_reads/gene_tagged_aligned.bam",
@@ -28,24 +28,6 @@ wildcard_constraints:
     patient='|'.join(config["patient_ids"])
 
 # workflow rules -----------------------------------------------------------------------------------
-
-#get barcodes.tsv and amplified_variants.csv file
-rule get_files:
-  input:
-      barcodes = "../gene_expression/data/{patient_exome}/outs/filtered_feature_bc_matrix/barcodes.tsv.gz",
-      variants = "../exome/results/{patient_exome}/primers/selected_variants.csv"
-  output:
-      barcodes = "data/{patient_exome}/mutation_counts/barcodes.tsv",
-      variants = "data/{patient_exome}/mutation_counts/amplified_variants.csv"
-  params:
-      comp_barcodes = "data/{patient_exome}/mutation_counts/barcodes.tsv.gz"
-  log:
-      "data/{patient_exome}/mutation_counts/logs/get_files.log"
-  shell:
-      "cp {input.barcodes} {params.comp_barcodes} ; "
-      "gunzip {params.comp_barcodes} ; "
-      "cp {input.variants} {output.variants} "
-      "2> {log}"
 
 # convert fastq input files into one unmapped bam file
 rule fastq_to_bam:
@@ -380,7 +362,7 @@ rule alignment_summary_stats:
     "data/{patient}/mutation_counts/alignment_stats.csv"
   params:
     gtf_genome = config["genome_references"]["gtf"],
-    target_genes = "raw_data/{patient}/amplified_variants.csv"
+    target_genes = "raw_data/{patient}/selected_variants.csv"
   log:
     "data/{patient}/mutation_counts/logs/alignment_positions.log"
   conda:
@@ -396,7 +378,7 @@ rule alignment_summary_stats:
 # make bed file with the mutated sites
 rule make_bed:
   input:
-    genes = "raw_data/{patient}/amplified_variants.csv",
+    genes = "raw_data/{patient}/selected_variants.csv",
     bam = "data/{patient}/align_reads/gene_tagged_aligned.bam"
   output:
     "data/{patient}/mutation_counts/mutated_sites.bed"
@@ -629,7 +611,7 @@ rule make_count_table:
     input:
         bam = "data/{patient}/mutation_counts/count_table/umi_collapsed.bam",
         bai =  "data/{patient}/mutation_counts/count_table/umi_collapsed.bam.bai",
-        variants = "raw_data/{patient}/mutation_counts/amplified_variants.csv"
+        variants = "raw_data/{patient}/selected_variants.csv"
     output:
         "data/{patient}/mutation_counts/count_table/count_table.pickle"
     params:
@@ -651,7 +633,7 @@ rule make_count_table:
 rule table_to_rds:
     input:
         pickle = "data/{patient}/mutation_counts/count_table/count_table.pickle",
-        variants = "raw_data/{patient}/mutation_counts/amplified_variants.csv",
+        variants = "raw_data/{patient}/selected_variants.csv",
         barcodes = "raw_data/{patient}/barcodes.tsv",
         reads = "data/{patient}/mutation_counts/reads_cell.txt"
     output:
@@ -675,7 +657,7 @@ rule table_to_rds:
 # make summary report
 rule summary_report:
     input:
-        variants = "raw_data/{patient}/amplified_variants.csv",
+        variants = "raw_data/{patient}/selected_variants.csv",
         count_table = "data/{patient}/mutation_counts/count_table/{patient}_count_table.rds",
         align_stats = "data/{patient}/mutation_counts/alignment_stats.csv",
         barcodes = "raw_data/{patient}/barcodes.tsv"

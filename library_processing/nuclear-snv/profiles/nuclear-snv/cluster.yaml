@@ -18,9 +18,9 @@ __default__:
 star_align:
   error: log_files/stderr.txt
   output: log_files/stdout.txt
-  queue: short-sl7
+  queue: long-sl7
   pe: smp 8
-  walltime: 04:00:00
+  walltime: 06:00:00
   virtual_free: 80G
 
 split_bam:
@@ -60,14 +60,6 @@ align_deduplicated:
   error: log_files/stderr.txt
   output: log_files/stdout.txt
   queue: long-sl7
-  pe: smp 10
-  walltime: 12:00:00
-  virtual_free: 80G
-
-split_count_bams:
-  error: log_files/stderr.txt
-  output: log_files/stdout.txt
-  queue: long-sl7
-  pe: smp 8
+  pe: smp 6
   walltime: 06:00:00
-  virtual_free: 50G
+  virtual_free: 80G

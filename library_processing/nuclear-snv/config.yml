@@ -15,11 +15,19 @@ bc_structure:
 
 # reference files for alignment and annotation
 genome_references:
-  fasta: */Homo_sapiens.GRCh38.dna.primary_assembly.fasta  
-  genome_dir: "*/GRCh38/genomeDir"
-  gtf: */Homo_sapiens.GRCh38.100.chr.gtf
-  dict: */Homo_sapiens.GRCh38.dna.primary_assembly.dict
-  refFlat: */Homo_sapiens.GRCh38.dna.primary_assembly.refFlat
+  genome_dir: ../../../../../../sbeneyto/alignment_references/GRCh38/genomeDir
+  gtf: ../../../../../../sbeneyto/alignment_references/GRCh38/Homo_sapiens.GRCh38.100.chr.gtf
+  fasta: ../../../../../../sbeneyto/alignment_references/GRCh38/Homo_sapiens.GRCh38.dna.primary_assembly.fasta
+  dict: ../../../../../../sbeneyto/alignment_references/GRCh38/Homo_sapiens.GRCh38.dna.primary_assembly.dict
+  refFlat: ../../../../../../sbeneyto/alignment_references/GRCh38/Homo_sapiens.GRCh38.dna.primary_assembly.refFlat
+
+
+# genome_references:
+#   fasta: */Homo_sapiens.GRCh38.dna.primary_assembly.fasta
+#   genome_dir: "*/GRCh38/genomeDir"
+#   gtf: */Homo_sapiens.GRCh38.100.chr.gtf
+#   dict: */Homo_sapiens.GRCh38.dna.primary_assembly.dict
+#   refFlat: */Homo_sapiens.GRCh38.dna.primary_assembly.refFlat
 
 # parameters read alignment ------------------------------------------------------------------------------
 tag_cell_barcodes:
