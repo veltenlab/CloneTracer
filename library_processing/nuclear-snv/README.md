@@ -25,13 +25,13 @@ For each library a directory should be created inside the "raw_data" folder with
 
 * Fastq files for read1 and read2. They must contain "\*R1*" and "\*R2*" in the file name, respectively (e.g. `raw_data/P1/P1_R1.fastq.gz` for read1 fastq).
 * `barcodes.tsv`: list of barcodes present in gene expression library (one barcode per line). It must follow the cellranger format of barcode-1.
-* `selected_variants.csv`: .csv file with gene name, chromosome and position of the amplified mutations as follows:
+* `selected_variants.csv`: .csv file with gene name, chromosome and position of the amplified mutations as well as the reference and alternative allele as follows:
 
-| symbol      | CHROM  | POS
-| ----------- | ------ |-----------
-| KRAS        | chr12  | 25245350
-| NRAS        | chr1   | 114713909
-| IDH2        | chr15  | 90088702
+| symbol      | CHROM  | POS        | ref | alt 
+| ----------- | ------ |------------| --- | ---
+| KRAS        | chr12  | 25245350   |  C  |  T
+| NRAS        | chr1   | 114713909  |  G  |  T
+| IDH2        | chr15  | 90088702   |  C  |  T
 
 ## Fill config.yml
 
