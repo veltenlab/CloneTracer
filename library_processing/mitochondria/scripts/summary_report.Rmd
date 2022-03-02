@@ -1,6 +1,5 @@
 ---
 title: "Mitochondrial library report"
-author: "Sergi Beneyto-Calabuig"
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 params:
   rmd: "summary_report.Rmd"
@@ -91,9 +90,7 @@ align_stats <- list.files(paste0(directory, "/data/", sample_report, "/align_rea
                pattern = "star.Log", full.names = T)
 
 # load data from 10x default and reference mitochondrial library (P3)
-#ref_data <- readRDS(url(""))
-
-ref_data <- readRDS("/home/sbeneyto/cluster/project/AML/git/CloneTracer/library_processing/mitochondria/data/ref_data.rds")
+ref_data <- readRDS(paste0(directory, "/data/ref_data.rds"))
 
 
 ```
@@ -205,7 +202,7 @@ mito_coverage_norm <- bind_rows(ref_data$cvg_10x,
 
 
 # get the max coverage
-max_norm_cvg <- mito_coverage_norm %>% pull(smooth_coverage) %>% max() + 0.01
+max_norm_cvg <- mito_coverage_norm %>% pull(smooth_coverage) %>% max() + 0.05
 
 
 # plot norm coverage compared to example mitochondrial library from P3

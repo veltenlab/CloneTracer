@@ -7,7 +7,7 @@ configfile: "config.yml"
 rule all:
     input:
         expand("data/{patient}/align_reads/gene_tagged_aligned.bam",
-                    patient = config["patient_ids"]),
+                patient = config["patient_ids"]),
         expand("data/{patient}/mito_counts/reads_cell.txt",
                patient = config["patient_ids"]),
         expand("data/{patient}/mito_counts/count_table/umi_collapsed.bam.bai",
@@ -30,8 +30,8 @@ wildcard_constraints:
 # merge fastqs into single file
 rule merge_fastqs:
   input:
-    fastqs_read1 = lambda wildcards: sorted(glob.glob("raw_data/{patient}/*R1*".format(patient = wildcards.patient_novaseq))),
-    fastqs_read2 = lambda wildcards: sorted(glob.glob("raw_data/{patient}/*R2*".format(patient = wildcards.patient_novaseq)))
+    fastqs_read1 = lambda wildcards: sorted(glob.glob("raw_data/{patient}/*R1*".format(patient = wildcards.patient))),
+    fastqs_read2 = lambda wildcards: sorted(glob.glob("raw_data/{patient}/*R2*".format(patient = wildcards.patient)))
   output:
     merged_read1 = temp("raw_data/{patient}/merged_read1.fastq.gz"),
     merged_read2 = temp("raw_data/{patient}/merged_read2.fastq.gz")

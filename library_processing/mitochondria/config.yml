@@ -2,7 +2,7 @@
 
 # patient sample ids
 patient_ids:
-  [P1]
+  [cell_mixing]
 
 # cell and umi barcode base positions in barcode reads for each sample. the first element of the
 # array is the cell barcode range, while the second is the UMI barcode range.
@@ -11,11 +11,18 @@ bc_structure:
 
 # reference files for alignment and annotation
 genome_references:
-  genome_dir: "*/chrM/GRCh38"
-  gtf: "*/Homo_sapiens.GRCh38.100.chr.gtf"
-  fasta: "*/Homo_sapiens.GRCh38.dna.chromosome.MT.fa"
-  dict: "*/Homo_sapiens.GRCh38.dna.chromosome.MT.dict"
-  refFlat: "*/Homo_sapiens.GRCh38.dna.primary_assembly.refFlat"
+  genome_dir: ../../../../../../sbeneyto/alignment_references/chrM/GRCh38
+  gtf: ../../../../../../sbeneyto/alignment_references/GRCh38/Homo_sapiens.GRCh38.100.chr.gtf
+  fasta: ../../../../../../sbeneyto/alignment_references/chrM/GRCh38/Homo_sapiens.GRCh38.dna.chromosome.MT.fa
+  dict: ../../../../../../sbeneyto/alignment_references/chrM/GRCh38/Homo_sapiens.GRCh38.dna.chromosome.MT.dict
+  refFlat: ../../../../../../sbeneyto/alignment_references/GRCh38/Homo_sapiens.GRCh38.dna.primary_assembly.refFlat
+
+# genome_references:
+#   genome_dir: "*/chrM/GRCh38"
+#   gtf: "*/Homo_sapiens.GRCh38.100.chr.gtf"
+#   fasta: "*/Homo_sapiens.GRCh38.dna.chromosome.MT.fa"
+#   dict: "*/Homo_sapiens.GRCh38.dna.chromosome.MT.dict"
+#   refFlat: "*/Homo_sapiens.GRCh38.dna.primary_assembly.refFlat"
 
 # parameters read alignment ------------------------------------------------------------------------------
 tag_cell_barcodes:
