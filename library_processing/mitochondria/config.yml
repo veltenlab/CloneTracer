@@ -10,13 +10,6 @@ bc_structure:
   10x_v3: [1-16, 17-28]
 
 # reference files for alignment and annotation
-genome_references:
-  genome_dir: ../../../../../../sbeneyto/alignment_references/chrM/GRCh38
-  gtf: ../../../../../../sbeneyto/alignment_references/GRCh38/Homo_sapiens.GRCh38.100.chr.gtf
-  fasta: ../../../../../../sbeneyto/alignment_references/chrM/GRCh38/Homo_sapiens.GRCh38.dna.chromosome.MT.fa
-  dict: ../../../../../../sbeneyto/alignment_references/chrM/GRCh38/Homo_sapiens.GRCh38.dna.chromosome.MT.dict
-  refFlat: ../../../../../../sbeneyto/alignment_references/GRCh38/Homo_sapiens.GRCh38.dna.primary_assembly.refFlat
-
 # genome_references:
 #   genome_dir: "*/chrM/GRCh38"
 #   gtf: "*/Homo_sapiens.GRCh38.100.chr.gtf"
