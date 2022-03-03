@@ -1,12 +1,21 @@
 # CloneTracer
 
-CloneTracer is a methdology to add clonal resolution to scRNAseq datasets using nuclear and mitochondrial SNVs as well as CNVs. We have developed a Bayesian model which infers the clonal hierachy of the mutations in the sample and probabilistically assigns cells to clones. All required scripts and detailed explanation on how to implement the model can be found in:
+CloneTracer is a methdology to add clonal resolution to scRNAseq datasets using nuclear and mitochondrial SNVs as well as CNVs. Coverage in sample-specific nuclear SNVs as well as the mitochondrial genome is increased by generating separate targeted libraries from the whole transcriptome cDNA library. 
+
+
+
+To analyse the generated data, we have developed a Bayesian model which infers the clonal hierachy of the mutations in the sample and probabilistically assigns cells to clones. All required scripts and detailed explanation on how to implement the model can be found in:
 
 * [Clonal inference](clonal_inference)
 
-In CloneTracer, coverage of nuclear SNVs is increased through nested PCRs using mutation-specific primers. Scripts to design primers targeting nuclear SNVs of interest can be found in:
+In order to increase the coverage on nuclear SNVs a series of nested PCR are carried out on the whole transcriptome library. This requires mutation-specific primers. All necessary scripts to design such primers are available in:
 
 * [Primer design for nuclear SNVs library](primer_design)
+
+Workflows to pre-process the mitochondrial and nuclear SNV libraries can be found in:
+
+* [Processing pipeline nuclear SNV library](library_processing/nuclear-snv)
+* [Processing pipeline mitochondrial library](library_processing/mitochondria)
 
 ## Contact
 
