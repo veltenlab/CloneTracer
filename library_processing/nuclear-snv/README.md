@@ -18,6 +18,7 @@ cd library_processing/nuclear-snv
 conda env create -f envs/CloneTracer.yml
 conda activate clonetracer
 ```
+This conda environment also contains all packages to process nuclear libraries as described in [processing mitochondrial libraries](../mitochondria) section.
 
 ## Input files
 
