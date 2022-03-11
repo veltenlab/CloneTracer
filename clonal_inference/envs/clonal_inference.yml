@@ -1,4 +1,4 @@
-name: mutaseqv2
+name: clonal_inference
 channels:
   - anaconda
   - conda-forge
