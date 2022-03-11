@@ -16,12 +16,13 @@ The model is implemented in [pyro](http://pyro.ai/) a probabilistic programming 
 
 The following python libraries are required to run the model: pyro, pytorch, pickle, pandas, numpy and seaborn. 
 
-We have included a yml which contains all required packages to run the model. A conda environment can be created from it to run the model:
+We have included a .yml file which contains all required packages to run the model. A conda environment can be created from it to run the model:
 
 ```
 git clone https://github.com/veltenlab/CloneTracer
 cd clonal_inference
-conda env create -f envs/clonal_inference.yml
+conda env create -f envs/clonal_inference.yml -n clonal_inference
+conda activate clonal_inference
 ```
 ## Input file
 
@@ -84,7 +85,7 @@ To run the model for P1, the following command line argument is used:
 python run_clonal_inference.py -i data/input_P1.json -n P1 -o data -t 400 -s -g
 ```
 
-In [notebooks](notebooks) there are examples of how the model can be run non-interactively. 
+In [notebooks](notebooks) there are examples of how the model can be run interactively. 
 
 ## Output
 
