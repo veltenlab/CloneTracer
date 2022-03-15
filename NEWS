@@ -1,3 +1,7 @@
-# v1.0.0
+# v1.0.0 -----------------------------------------------------------------------------------
 
-  Initial release with source code of the Bayesian model for clonal assignments as well as pipelines to process nuclear SNV and mitochondrial libraries. Also contains scripts to design primers to amplify nuclear SNVs.
+  Initial release which contains:
+
+    - Bayesian model for clonal assignments
+    - Pipelines to process nuclear SNV and mitochondrial libraries
+    - Scripts to design primers for amplification of nuclear SNVs from 10x 3' scRNAseq libraries
