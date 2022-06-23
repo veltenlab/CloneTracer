@@ -20,7 +20,7 @@ We have included a .yml file which contains all required packages to run the mod
 
 ```
 git clone https://github.com/veltenlab/CloneTracer
-cd clonal_inference
+cd CloneTracer/clonal_inference
 conda env create -f envs/clonal_inference.yml -n clonal_inference
 conda activate clonal_inference
 ```
