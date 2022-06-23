@@ -10,7 +10,7 @@ We provide a conda environment with all dependencies installed:
 
 ```
 git clone https://github.com/veltenlab/CloneTracer
-cd primer_design
+cd CloneTracer/primer_design
 conda env create -f envs/primer_design.yml
 ```
 
