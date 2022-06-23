@@ -14,7 +14,7 @@ We provide a conda environment with all the required package dependencies. It ca
 
 ```
 git clone https://github.com/veltenlab/CloneTracer
-cd library_processing/mitochondria
+cd CloneTracer/library_processing/mitochondria
 conda env create -f envs/CloneTracer.yml
 conda activate clonetracer
 ```
