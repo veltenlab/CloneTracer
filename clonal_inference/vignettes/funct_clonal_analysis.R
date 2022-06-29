@@ -1,4 +1,17 @@
 # scripts with functions to carry out clonal analysis of patients
+library(tidyverse)
+library(mitoClone)
+library(Seurat)
+library(ComplexHeatmap)
+library(reticulate)
+pd <- import("pandas")
+library(circlize)
+library(patchwork)
+library(MAST)
+library(qpdf)
+library(ggrepel)
+library(ggridges)
+library(DiagrammeRsvg)
 library(RColorBrewer)
 library(patchwork)
 library(viridis)
@@ -6,6 +19,9 @@ library(scmap)
 library(SingleCellExperiment)
 library(parallel)
 library(aws.s3)
+library(rsvg)
+library(DiagrammeR)
+library(jsonlite)
 
 warriors_yellow <- "#FDBB30"
 wine_red <- "#860038"
@@ -608,7 +624,7 @@ make_qplots <- function(fisher_output, cell_types = FALSE, pval_thr = 2){
 
 # function to get mitochondrial M and N matrices for a selected subset of variants
 mito_matrix <- function(seurat, variants, mito_path = "~/cluster/project/AML/mito_mutations/data/",
-                        name = "", timepoints = FALSE, samples = "", runs = c("first", "second", "third")){
+                        name = "", timepoints = FALSE, samples = "", time_mapper = ""){
   
   if(timepoints){
     
@@ -618,10 +634,10 @@ mito_matrix <- function(seurat, variants, mito_path = "~/cluster/project/AML/mit
       samp <- samples[i]
       
       # load mito count table
-      mito_object <- readRDS(paste0(mito_path, samp, "/mito_counts/count_table/", samp, "_count_table.rds" ))
+      mito_object <- readRDS(paste0(mito_path, samp, "/mito_counts/count_table/", samp, "_count_table.rds"))
       
       # get cellbarcodes from timepoint of interest
-      cb <- intersect(seurat@meta.data %>% filter(run == runs[i]  & patient == str_split(samp, "")[[1]][4]) %>% rownames(),
+      cb <- intersect(seurat@meta.data %>% filter(patient == name) %>% rownames(),
                       names(mito_object))
       
       # select only cells present in Seurat object
@@ -708,7 +724,7 @@ mito_matrix <- function(seurat, variants, mito_path = "~/cluster/project/AML/mit
 }
 # function to get nuclear M and N matrices for a particular sample
 nuclear_matrix <- function(seurat, variants, path = "~/cluster/project/AML/nuclear_mutations/data/",
-                           name = "", timepoints = FALSE, samples = "", runs = c("first", "second", "third"),
+                           name = "", timepoints = FALSE, samples = "",
                            barcodes = NULL){
   
   if(timepoints){
@@ -722,7 +738,7 @@ nuclear_matrix <- function(seurat, variants, path = "~/cluster/project/AML/nucle
       nucl_object <- readRDS(paste0(path, samp, "/mutation_counts/count_table/", samp, "_count_table.rds"))
       
       # get cellbarcodes from timepoint of interest
-      cb <- intersect(seurat@meta.data %>% filter(run == runs[i]  & patient == str_split(samp, "")[[1]][4]) %>% rownames(),
+      cb <- intersect(seurat@meta.data %>% filter(patient == name) %>% rownames(),
                       nucl_object$cell_barcode)
       
       # N matrix
@@ -846,7 +862,9 @@ getCNVStatus <- function(s, M = NULL, N = NULL, chromosomes, mito = F,
     colnames(add.M) <- paste0("chr",chromosomes) -> colnames(add.N)
     list(M = cbind(M, add.M), N = cbind(N, add.N))
   } else {
-    data.frame(count.by.chrom[,chromosomes,drop=F], total = s$nCount_RNA)
+    d <- data.frame(count.by.chrom[,chromosomes,drop=F], total = s$nCount_RNA)
+    colnames(d) <- c(chromosomes, "total")
+    return(d)
   }
   
 }
@@ -1092,15 +1110,14 @@ mutcalls_to_json <- function(seurat = NULL, patient = "",
                              host = "https://uswest.ensembl.org",
                              CNV_priors = "~/cluster/lvelten/Analysis/AML/MethodsDev/clonalAssignment/ourcohort.partial.prior.rds",
                              cnv_mapper = "~/cluster/lvelten/Analysis/AML/MethodsDev/clonalAssignment/ourcohort.partial.celltypemapper.RDS",
-                             time = F, time_sampl = "",
-                             runs = c("first", "second", "third")){
+                             time = F, time_sampl = ""){
   
   object <- NULL
   
   # get N and M matrices
   if(mito){
     
-    mito_matrix_object <- mito_matrix(seurat, name = patient, mito_variants, timepoints = time, samples = time_sampl, runs = runs)
+    mito_matrix_object <- mito_matrix(seurat, name = patient, mito_variants, timepoints = time, samples = time_sampl)
     
   }else{mito_matrix_object <- NULL}
   
@@ -1110,7 +1127,7 @@ mutcalls_to_json <- function(seurat = NULL, patient = "",
     if(patient == "P19003-11"){
       patient = "P19003_1"}
     
-    nucl_matrix <- nuclear_matrix(seurat, name = patient, nucl_variants, timepoints = time, samples = time_sampl, runs = runs)
+    nucl_matrix <- nuclear_matrix(seurat, name = patient, nucl_variants, timepoints = time, samples = time_sampl)
     
     if(!is.null(mito_matrix_object)){
       
@@ -1133,7 +1150,6 @@ mutcalls_to_json <- function(seurat = NULL, patient = "",
                      N = cbind(nucl_N, mito_N))
       
       # in case there is only 
-      
     }else{object <- nucl_matrix}
     
   }
@@ -1148,10 +1164,26 @@ mutcalls_to_json <- function(seurat = NULL, patient = "",
   # if there are CNVs get the number of counts in the chromosome of interest and the total number of counts
   if(CNV){
     
-    # get counts on the chromosome of interest and nCount_RNA
-    object <- getCNVStatus(seurat, M = object$M, N = object$N, chromosomes = chromosomes, partial = partial_cnv,
-                           positions = positions, host = host) 
-    
+    # if there are no mitochondrial/nuclear variants it is a bit different
+    if(mito == F & nucl == F){
+      
+      datacnv <- getCNVStatus(seurat, chromosomes = chromosomes, partial = partial_cnv, 
+                              positions = positions, host = host)
+      
+      object <- list(M = as.matrix(datacnv[,chromosomes]),
+                     N = replicate(length(chromosomes), datacnv$total))
+      
+      colnames(object$M) <- colnames(object$N) <- chromosomes
+      rownames(object$N) <- rownames(object$M)
+      
+    }else{
+      
+      # get counts on the chromosome of interest and nCount_RNA
+      object <- getCNVStatus(seurat, M = object$M, N = object$N, chromosomes = chromosomes, partial = partial_cnv,
+                             positions = positions, host = host) 
+            
+      
+    }
   }
   
   # add column names as item in the list
@@ -1167,9 +1199,18 @@ mutcalls_to_json <- function(seurat = NULL, patient = "",
   object$umapx <- meta$umapx
   object$umapy <- meta$umapy
   object$cell_barcode <- rownames(object$M)
-  object$class_assign <- ifelse(meta$ct == "T cells", 0, 1)
-  object$class_names <- c("Tcells", "myeloid")
-  #object$timepoint <- ifelse(meta$day == "d0", 0, ifelse(meta$day %in% c("d15", "d21"), 1, 2))
+  
+  if(time){
+    
+    object$class_assign <- ifelse(meta$day == "d0", 0, ifelse(meta$day %in% c("d15", "d21"), 1, 2))
+    object$class_names <- unique(meta$day)
+    
+  }else{
+    
+    object$class_assign <- ifelse(meta$ct == "T cells", 0, 1)
+    object$class_names <- c("Tcells", "myeloid")  
+    
+  }
   
   # add celltype and CNV h priors by celltype
   if(CNV_celltypes){
@@ -1181,11 +1222,11 @@ mutcalls_to_json <- function(seurat = NULL, patient = "",
     mapper <- readRDS(cnv_mapper)
   
     # map celltypes to chromosome count clusters
-    object$celltype <- as.integer(as.factor(ifelse(meta$celltype %in% names(mapper), mapper[meta$celltype], NA)))
+    object$celltype <- as.integer(as.factor(ifelse(meta$celltype %in% names(mapper), mapper[meta$celltype], NA)))-1
     object$celltype_names <- mapper %>% unique() %>% sort()
     
     # rename chromosomes
-    chrom <- gsub("^(\\d+).+", "\\1", chromosomes)
+    chrom <- gsub("\\D", "", chromosomes)
     
     # get cnv priors for the chromosomes of interest
     priors <- lapply(1:length(chrom), function(x){
@@ -1229,11 +1270,12 @@ mutcalls_to_json <- function(seurat = NULL, patient = "",
     bulk_nucl_m <- list(unlist(map(map(list_exome, "m"), "tcells")), unlist(map(map(list_exome, "m"), "myeloid")))
     bulk_nucl_n <- list(unlist(map(map(list_exome, "n"), "tcells")), unlist(map(map(list_exome, "n"), "myeloid")))
     
-  }else{
+  }else if(time){
     
-    bulk_nucl_m <- bulk_nucl_n <- list(rep(0, length(nucl_variants)))
+    bulk_nucl_m <- bulk_nucl_n <- list(rep(0, length(nucl_variants)),
+                                       rep(0, length(nucl_variants)))
     
-  }
+  }else{bulk_nucl_m <- bulk_nucl_n <- list(rep(0, length(nucl_variants)))}
   
   # add bulk counts from mitochondrial mutations (if available)
   # add bulk exome (if available)
@@ -1258,11 +1300,11 @@ mutcalls_to_json <- function(seurat = NULL, patient = "",
     bulk_mito_m <- list(unlist(map(map(list_mito, "m"), "tcells")), unlist(map(map(list_mito, "m"), "myeloid")))
     bulk_mito_n <- list(unlist(map(map(list_mito, "n"), "tcells")), unlist(map(map(list_mito, "n"), "myeloid")))
     
-  }else{
+  }else if(time){
     
     bulk_mito_m <- bulk_mito_n <- list(rep(0, length(mito_variants)), rep(0, length(mito_variants)))
     
-  }
+  }else{bulk_mito_m <- bulk_mito_n <- list(rep(0, length(mito_variants)))}
   
   # we might discover mito variants for which we don't have bulk atac counts, therefore we should fill 0s 
   if(length(bulk_mito_m[[1]]) < length(mito_variants)){
@@ -1304,11 +1346,12 @@ mutcalls_to_json <- function(seurat = NULL, patient = "",
     object$r_cnv <- c(rep(0, length(c(nucl_variants, mito_variants))),
                       ifelse(type_cnv == "amp", 1.5, 0.5))
     
-    object$bulk_M[[1]] <- c(object$bulk_M[[1]], rep(0, length(type_cnv)))
-    object$bulk_M[[2]] <- c(object$bulk_M[[2]], rep(0, length(type_cnv)))
-    object$bulk_N[[1]] <- c(object$bulk_N[[1]], rep(0, length(type_cnv)))
-    object$bulk_N[[2]] <- c(object$bulk_N[[2]], rep(0, length(type_cnv)))
-    
+    for (i in 1:length(object$bulk_M)){
+      
+      object$bulk_M[[i]] <- c(object$bulk_M[[i]], rep(0, length(type_cnv)))
+      object$bulk_N[[i]] <- c(object$bulk_N[[i]], rep(0, length(type_cnv)))
+      
+    }
   }
   
   # add h_alpha and h_beta priors
@@ -1376,7 +1419,6 @@ mito_rename <- function(string){
   
 }
 
-# function to get 
 get_tree_attr <- function(pickle, tree){
   
   tree <- as.integer(tree)
@@ -1396,6 +1438,7 @@ get_tree_attr <- function(pickle, tree){
   # vector for direction of edges and node names
   node_names <- node_order <- rep("", nrow(tree_mat))
   start_nodes <- end_nodes <- rep("", nrow(tree_mat)-1)
+  start_ind <- end_nodes <- rep("", nrow(tree_mat)-1)
   
   for(node in 1:nrow(tree_mat)){
     
@@ -1422,8 +1465,11 @@ get_tree_attr <- function(pickle, tree){
       # get next node in the tree
       nxt_node <- order(lengths(parents))[node]
       
+      # get parent node
+      node_parent <- tail(node_order[node_order %in% as.character(parents[[nxt_node]]+1)], n = 1)
+      
       # get new mutations in the node
-      node_name <- paste(colnames(tree_mat)[which(tree_mat[nxt_node,]-tree_mat[as.integer(node_order[node-1]),] == 1)], 
+      node_name <- paste(colnames(tree_mat)[which(tree_mat[nxt_node,]-tree_mat[as.integer(node_parent),] == 1)], 
                          collapse = "\n")
       
       # add name of node and the index
@@ -1431,7 +1477,6 @@ get_tree_attr <- function(pickle, tree){
       node_order[node] <- nxt_node
       
       # get parent node
-      node_parent <- tail(node_order[node_order %in% as.character(parents[[nxt_node]]+1)], n = 1)
       start_nodes[node-1]  <- node_names[which(node_order == node_parent)] 
       
       end_nodes[node-1] <- node_name
@@ -1447,8 +1492,10 @@ get_tree_attr <- function(pickle, tree){
   
 }
 
+  
+
 # function to plot all clonal hierarchies selected by the model
-plot_trees <- function(pickle, tree = "all", clone_cols = T){
+plot_trees <- function(pickle, tree = "all", clone_cols = T, fontype = "bold"){
   
   if(tree == "all"){
     
@@ -1483,10 +1530,11 @@ plot_trees <- function(pickle, tree = "all", clone_cols = T){
         label = rownames(tree_att$tree_mat),
         style = "filled", 
         shape = "oval", 
-        fixed_size = TRUE,
+        fixed_size = FALSE,
         fontname = "Helvetica",
         fontsize = 11, 
         fontcolor = '#FFFFFF',
+        fontype = fontype,
         height = node_heights, 
         width = node_widths,
         color = colors, 
@@ -1755,7 +1803,7 @@ make_heatmap <- function(pickle, seurat, pat, tree, cols = "",
                      column_title_side = "bottom") 
   
   # add legend
-  lgd_list <- list(Legend(labels = gsub("\n","-",rownames(tree_att$tree_mat)), 
+  lgd_list <- list(Legend(labels = rownames(tree_att$tree_mat), 
                           legend_gp = gpar(fill = rev(clone_cols_discr)),
                           title = "Clone"))
   
@@ -1813,7 +1861,7 @@ make_heatmap <- function(pickle, seurat, pat, tree, cols = "",
     
     draw(ht_list, annotation_legend_list = lgd_list, merge_legend = TRUE)
     
-    return(list(plot = heatmap, legend = lgd_list))
+    return(list(plot = ht_list, legend = lgd_list))
     
   }else{
     
