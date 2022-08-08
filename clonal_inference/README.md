@@ -1,11 +1,11 @@
-# Inference of clonal hierarchies
+# Inference of clonal hierarchies with CloneTracer
 
 
 ## Description
 
-Here we developed and bayesian model to infer clonal hierarchies from scRNAseq data using nuclear and mitochondrial SNVs as well as CNVs. 
+CloneTracer is a Bayesian model which infer clonal hierarchies from scRNAseq data using nuclear and mitochondrial SNVs as well as CNVs. 
 The model uses stochastic variational inference to select the mutation tree with the highest evidence (lowest Evidence Lower Bound, ELBO).
-Then it computes the posterior probability for each cell to belong to each clone in the inferred tree.
+Then it computes the posterior probability for each cell to belong to any given clone in the inferred tree.
 
 
 The model is implemented in [pyro](http://pyro.ai/) a probabilistic programming language written in Python which uses PyTorch as backend.  
@@ -26,7 +26,7 @@ conda activate clonal_inference
 ```
 ## Input file
 
-The model requires a config file in JSON format (see below how to create a JSON file in [R](#with-r), add links to headers). Input files for all patients 
+The model requires a config file in JSON format (see below how to create a JSON file in [R](#with-r). Input files for all patients 
 in the manuscript are present in [input data](data).
 
 ### Required entries
@@ -63,7 +63,7 @@ in the manuscript are present in [input data](data).
 
 ## Run the model
 
-In order to run the model the scripts [run_clonal_inference.py](run_clonal_inference.py) and [helper_functions.py](helper_functions.py) should be in the same directory. The script run_clonal_inference.py is an executable python script with the following arguments:
+In order to run the model the scripts [run_clonetracer.py](run_clonetracer.py) and [helper_functions.py](helper_functions.py) should be in the same directory. The script run_clonetracer.py is an executable python script with the following arguments:
 
 ### Required
 
@@ -79,10 +79,10 @@ In order to run the model the scripts [run_clonal_inference.py](run_clonal_infer
 * `-g, -gpu`: include in order to use GPU processor to run the inference model. We recommend to use this option as it results in faster runtimes.
 * `-a, --all_trees`: adding this flag will run the model for all possible trees in the sample. We strongly recommend using the default implementation which uses a heuristic approach (see figure S8 of the manuscript)to reduce the tree search space. This results in much faster runtimes than testing all trees yielding identical results.
 
-To run the model for P1, the following command line argument is used:
+To run the model for sample A.6, the following command line argument is used:
 
 ```
-python run_clonal_inference.py -i data/input_P1.json -n P1 -o data -t 400 -s -g
+python run_clonal_inference.py -i data/A.6.json -n A.6 -o data -t 400 -s -g
 ```
 
 In [notebooks](notebooks) there are examples of how the model can be run interactively. 
@@ -99,8 +99,8 @@ Two output files are created:
 In the \*_out.pickle all necessary information to carry out downstream analysis is stored:
 
 * **trees**: list of selected trees by the model (mutationsxclones)
-* **mutations_tree**: order of mutations in trees
-* **clonal_prob**: list of clonal probabilities for each single cells for the selected trees. Rows correspond to cells and columns to clones.
+* **mutations_tree**: order of mutations in trees (column names)
+* **clonal_prob**: list of matrices with clonal probabilities for each single cell in each selected trees. Rows correspond to cells and columns to clones.
 * **cell_barcode**: cell barcodes in the same order as rows in clonal_prob matrices.
 * **M**: matrix of mutant read counts.
 * **N**: matrix of reference read counts.
@@ -109,45 +109,52 @@ In the \*_out.pickle all necessary information to carry out downstream analysis 
 
 The python class used to run the model is stored in \*_tree.pickle. It can be used to generate diagnostic plots (see [notebooks](notebooks)). 
 
-### Load pickle file into R
+## Downstream analysis
 
-Pickle files can be loaded into R using reticulate:
-
-```
-library(reticulate)
-pd$read_pickle("data/P1_out.pickle")
-```
+Downstream analysis was done in R. See [vignette](vignettes) section for example reports for samples A.3 and A.6 from the manuscript.
 
 ## How to create a JSON file
 
 ### With R 
 
-Entries described in [Input file](#input-file) should be added as items of a list. The following command generates the input file for P1:
+Entries described in [Input file](#input-file) should be added as items of a list. The following command generates the input file for A.6:
 
 ```
-library(json)
+library(jsonlite)
 
 # load input files
-M -> read.csv("data/P1_files/M.csv")
-N -> read.csv("data/P1_files/N.csv")
-barcodes -> c(read.table("data/P1_files/barcodes.txt", sep = "\t"))
-sample -> c(read.table("data/P1_files/class.txt", sep = "\t"))
+# single cell count matrices
+single_M <- as.matrix(read.csv("data/A.6_files/M.csv")) 
+single_N <- as.matrix(read.csv("data/A.6_files/N.csv"))
+colnames(single_M) <- colnames(single_N) <- NULL
 
-# create list with required items
-json_P1 <- list(M = M, 
-                N = N,
-                mut_type = c(1,1,1,0),
-                mut_names = c("KRAS", "IDH2", "NRAS","chr8"),
-                cell_barcode = barcodes,
-                bulk_M = list(c(46, 22, 8, 12), c(0,0,0,0)),
-                bulk_N = list(c(54, 78, 92, 16), c(0,0,0,0)),
-                r_cnv = c(0,0,0, 1.5),
-                h_alpha = c(1000,1000,1000, 2),
-                h_beta = c(1000,1000,1000, 100),
-                class_assign = sample,
-                class_names = c("Day0", "Day15"))
-                
-# create json file
-write_json(json_P1, path = data/input_P1.json)
+
+# bulk exome count matrices 
+bulk_M <- as.matrix(read.csv("data/A.6_files/bulk_M.csv"))
+bulk_N <- as.matrix(read.csv("data/A.6_files/bulk_N.csv"))
+colnames(bulk_M) <- colnames(bulk_N) <- NULL
+
+# cell barcodes
+barcodes <- c(read.table("data/A.6_files/barcodes.txt"))
+
+# bulk celltype class
+bulk_class <- c(read.table("data/A.6_files/class_bulk.txt"))$V1
+
+# create a list with all required entries
+input_A6 <- list(M = single_M,
+                 N = single_N, 
+                 mut_names = c("RAD21", "X3019.G.C", "X10747.T.C", "X11652.T.C", "X13827.A.G"),
+                 cell_barcode = barcodes, 
+                 class_assign = bulk_class, 
+                 class_names = c("Tcells", "Myeloid"),
+                 bulk_M = bulk_M, 
+                 bulk_N = bulk_N,
+                 r_cnv = rep(0, 5),
+                 h_alpha = c(2,1000,1),
+                 h_beta = c(100, 1000,1),
+                 mut_type = c(1, rep(2, 4)))
+
+# write list as json file
+write_json(input_A6, "data/A.6.json")
 
 ```
