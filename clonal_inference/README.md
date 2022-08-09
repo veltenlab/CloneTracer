@@ -82,7 +82,7 @@ In order to run the model the scripts [run_clonetracer.py](run_clonetracer.py) a
 To run the model for sample A.6, the following command line argument is used:
 
 ```
-python run_clonal_inference.py -i data/A.6.json -n A.6 -o data -t 400 -s -g
+python run_clonetracer.py -i data/A.6.json -n A.6 -o data -t 400 -s -g
 ```
 
 In [notebooks](notebooks) there are examples of how the model can be run interactively. 
@@ -111,7 +111,7 @@ The python class used to run the model is stored in \*_tree.pickle. It can be us
 
 ## Downstream analysis
 
-Downstream analysis was done in R. See [vignette](vignettes) section for example reports for samples A.3 and A.6 from the manuscript.
+Downstream analysis was done in R. See [vignette](vignettes) section for example reports for samples A.2 and A.6 from the manuscript. The following packages are required: tidyverse, Seurat, ComplexHeatmap, reticulate, circlize, DigarmmeRsvg, DiagrammeR, qpdf, rsvg, RColorBrewer and archR. 
 
 ## How to create a JSON file
 
