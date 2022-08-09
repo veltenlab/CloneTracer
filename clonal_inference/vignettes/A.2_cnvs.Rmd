@@ -33,12 +33,10 @@ library(ComplexHeatmap)
 library(reticulate)
 pd <- import("pandas")
 library(circlize)
-library(patchwork)
 library(DiagrammeRsvg)
 library(DiagrammeR)
 library(qpdf)
 library(rsvg)
-library(DiagrammeRsvg)
 source("funct_clonal_analysis.R")
 
 pat <- "A.2"
