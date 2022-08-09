@@ -57,7 +57,7 @@ gpu = args.gpu
 
 # create directory for log files if it does not exist
 if not os.path.isdir("logs/"+name):
-   os.mkdir("logs/"+name)
+   os.makedirs("logs/"+name)
 
 # set standard error and standard output files
 sys.stdout = open("logs/"+name+"/"+name+"_stdout.txt", "w")
@@ -69,7 +69,7 @@ from helper_functions import *
 # create output directory if it does not exist
 if not os.path.isdir(out_dir):
     
-    os.mkdir(out_dir)
+    os.makedirs(out_dir)
 
 # set DoubleTensor as default and specify whether to use GPU
 if gpu:

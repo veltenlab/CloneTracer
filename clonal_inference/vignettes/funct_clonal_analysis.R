@@ -347,6 +347,9 @@ plot_trees <- function(pickle, tree = "all", clone_cols = F, fontype = "bold",
 # function to export trees into a merged pdf file
 export_trees <- function(grph_series, outdir = "plots/", h = 600, w = 300){
   
+  # create output directory if not present
+  suppressWarnings(dir.create(outdir))
+  
   # create an individual pdf for each tree
   for (i in 1:count_graphs_in_graph_series(grph_series)){
     

@@ -1,0 +1,232 @@
+---
+title: "Clonal analysis A.2"
+author: "Sergi Beneyto-Calabuig"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+params:
+  rmd: "summary_report.Rmd"
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+    code_folding: show
+    toc_depth: 4
+    toc_float:
+      collapsed: false
+    highlight: pygments 
+editor_options: 
+  chunk_output_type: inline
+---
+
+# Package loading
+
+Here we show a report with plots to visualize the output of CloneTracer for sample A.2 which contains nuclear SNVs and CNVs
+
+```{r setup, message=FALSE}
+# set global chunk settings
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+
+library(tidyverse)
+library(Seurat)
+library(ComplexHeatmap)
+library(reticulate)
+pd <- import("pandas")
+library(circlize)
+library(patchwork)
+library(DiagrammeRsvg)
+library(DiagrammeR)
+library(qpdf)
+library(rsvg)
+library(DiagrammeRsvg)
+source("funct_clonal_analysis.R")
+
+pat <- "A.2"
+
+```
+
+
+# Clonal analysis
+
+Trees selected by CloneTracer are stored in [trees_clonetracer.pdf](plots/trees_clonetracer.pdf) file. The title indicates the tree index which is necessary to identify the tree in the ELBO plot (see below). In this case there is only one tree selected
+
+
+```{r generate trees}
+
+# load pickle object
+pickle <- pd$read_pickle(paste0("../output/",pat,".pickle"))
+
+# get tree with highest evidence
+tree_list <- plot_trees(pickle, clone_cols = F)
+
+# save trees as pdf 
+export_trees(tree_list, h = 350, w = 200, outdir = paste0("plots_", pat))
+
+xfun::embed_file("plots_A.2/trees_clonetracer.pdf")
+
+```
+
+***
+
+## ELBO plots
+
+### All trees
+
+Here I plot the ELBO for the last iteration of the heuristic search. It is clear that tree 2 has a highest evidence compared to the rest.
+
+<br>
+
+```{r elbo all}
+
+print_elbo(pickle, first_iter = 700, max_elbo = "53000")
+
+```
+
+***
+
+## Clonal hierarchy
+
+
+```{r selected tree}
+
+sel_tree_ind <- "1"
+
+# make tree
+sel_tree <- plot_trees(pickle, tree = sel_tree_ind)
+
+render_graph(sel_tree$tree) %>% export_svg() %>% charToRaw() %>% 
+    rsvg_png("plots_A.2/selected_tree.png",
+             width = 600, height = 950)
+
+render_graph(sel_tree$tree) 
+```
+
+
+## Heatmaps
+
+Here we show a heatmap with the VAF of the SNVs in single cells as well as the clonal probabilities inferred by CloneTracer.
+For CNVs the scaled ratio of counts in the region of interest over total counts is shown. 
+Celltypes of interest can be added as an Annotation column. A seurat can be provided with celltypes as metadata column. 
+
+### Clonal probabilities
+
+We can show the clone posterior probabilities of each single cell. One can clearly see that cells with low healthy probability have low number of counts on chromosome 7, indicating that they carry a monosomy.
+
+
+```{r heatmap clones, fig.height=4, fig.width=8.5}
+
+# load Seurat object
+seurat <- subset(readRDS(url("https://figshare.com/ndownloader/files/36434613?private_link=717cb824ed6e13de2bc6")),
+                 patient == pat) 
+
+# add simplified celltype labels (only needed for this particular object)
+seurat <- add_simple_ct(seurat)
+seurat$ct <- ifelse(seurat$ct %in% c("T cells", "NK cells", "B cells"), "T & B cells", "Myeloid cells")
+
+# make sure cell_barcodes are the same between seurat and pickle objects
+seurat <- RenameCells(seurat, new.names = gsub("(^.+-1).+", "\\1", colnames(seurat)))
+
+heat_clones <- make_heatmap(pickle, 
+                        seurat = seurat, 
+                        tree = "1",
+                        pat = pat,
+                        celltype = T, 
+                        ct_column = "ct",
+                        prob_type = "clones",
+                        cnv_type = c("Monosomy", "Trisomy"), 
+                        cnv_pos = c(2,3),
+                        middle_point = 0.5,
+                        clust_rows = T)
+
+draw(heat_clones$plot, annotation_legend_list = heat_clones$legend, merge_legend = TRUE)
+```
+
+***
+
+### Cancer probability
+
+It is also useful to visualize the cancer probabilities computed as 1-posterior probability of being healthy
+
+```{r heatmap cancer, fig.height=4, fig.width=8.5}
+
+heat_cancer <- make_heatmap(pickle, 
+                        seurat = seurat, 
+                        tree = "1",
+                        pat = pat,
+                        celltype = T, 
+                        ct_column = "ct",
+                        cnv_type = c("Monosomy", "Trisomy"), 
+                        cnv_pos = c(2,3),
+                        prob_type = "cancer",
+                        middle_point = 0.5,
+                        clust_rows = T)
+
+draw(heat_cancer$plot, annotation_legend_list = heat_cancer$legend, merge_legend = TRUE)
+```
+
+***
+
+### both
+
+We can also plot both the clonal probabilities and the cancer posterior for each single cell on the same heatmap
+
+```{r heatmap all, fig.height=5.5, fig.width=8.5}
+
+heat_both <- make_heatmap(pickle, 
+                        seurat = seurat, 
+                        tree = "1",
+                        pat = pat,
+                        celltype = T, 
+                        ct_column = "ct",
+                        prob_type = "both",
+                        cnv_type = c("Monosomy", "Trisomy"), 
+                        cnv_pos = c(2,3),
+                        middle_point = 0.5,
+                        clust_rows = T)
+
+draw(heat_both$plot, annotation_legend_list = heat_both$legend, merge_legend = TRUE)
+```
+
+***
+
+## UMAPs
+
+We can visualize the posterior probabilities in a dimensionality reduction plot (UMAP, t-SNE, PCA). It should be contained in a Seurat object
+
+### Cancer probabilities
+
+```{r umap cancer probs, fig.height=5, fig.width=6}
+
+umap_leuk <- umap_leuk(pickle, seurat, tree = sel_tree_ind, reduction = "umap")
+
+umap_leuk
+
+```
+
+***
+
+### Clones
+
+If we want to visualize the clonal assignments the easiest is to select a posterior probability threshold for the discrete assignments of cells to clones. In our manuscript we use 0.8. 
+
+```{r umap clones, fig.height=5, fig.width=6}
+
+umap_clones <- umap_clones(pickle, seurat, tree = "1", reduction = "umap", post_thr = 0.8)
+
+umap_clones
+
+```
+
+***
+
+# Add metadata to Seurat
+
+We can add the cancer and clonal probabilities as well as the discrete assignments as metadata columns to a Seurat object
+
+```{r metadata to Seurat, eval=FALSE}
+
+# add clonal information to Seurat
+seurat <- add_meta(seurat, pickle, tree = "1")
+
+```
+
