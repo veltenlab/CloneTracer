@@ -135,7 +135,7 @@ bulk_N <- as.matrix(read.csv("data/A.6_files/bulk_N.csv"))
 colnames(bulk_M) <- colnames(bulk_N) <- NULL
 
 # cell barcodes
-barcodes <- c(read.table("data/A.6_files/barcodes.txt"))
+barcodes <- c(read.table("data/A.6_files/barcodes.txt"))$V1
 
 # bulk celltype class
 bulk_class <- c(read.table("data/A.6_files/class_bulk.txt"))$V1
