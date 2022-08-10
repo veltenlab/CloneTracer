@@ -14,7 +14,7 @@ output:
       collapsed: false
     highlight: pygments 
 editor_options: 
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 # Package loading

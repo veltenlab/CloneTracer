@@ -1080,7 +1080,8 @@ umap_clones <- function(pickle, seurat, tree, name, post_thr = 0.8, reduction = 
                       tree = tree) %>%  
                     mutate(clone = ifelse(clonal_probability > post_thr, as.character(clone), "Indeterminate")) %>% 
                     left_join(coords) %>% 
-                    filter(cell_barcode %in% intersect(colnames(seurat), pickle$cell_barcode))
+                    filter(cell_barcode %in% intersect(colnames(seurat), pickle$cell_barcode)) %>% 
+                    arrange(cell_barcode)
   
   # set colours to clones following the inferred clonal hierarchy
   cols <- setNames(c(c("#3b4ba7", rev(ArchRPalettes$calm))[1:length(clones_order)], ind_color),
@@ -1139,7 +1140,8 @@ umap_leuk <- function(pickle, seurat, tree, reduction = "umap"){
                         clone_names = clones_order,
                         tree = tree) %>% 
             left_join(coords) %>% 
-            filter(cell_barcode %in% intersect(colnames(seurat), pickle$cell_barcode))
+            filter(cell_barcode %in% intersect(colnames(seurat), pickle$cell_barcode)) %>% 
+            arrange(cell_barcode)
               
     
     # UMAP with reference as background
