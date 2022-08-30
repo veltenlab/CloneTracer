@@ -1,3 +1,11 @@
+# v2.0.0 -----------------------------------------------------------------------------------
+
+  Release with code used for CloneTracer bioaRxiv pre-print https://www.biorxiv.org/content/10.1101/2022.08.29.505648v1. Changes:
+  
+    - Fixes on Bayesian model
+    - Updated vignettes and documentation
+
+
 # v1.0.0 -----------------------------------------------------------------------------------
 
   Initial release which contains:
