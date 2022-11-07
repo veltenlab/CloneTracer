@@ -34,8 +34,6 @@ library(RColorBrewer)
 library(viridis)
 library(DT)
 library(SummarizedExperiment)
-#library(here)
-#library(plotly)
 snakemake@source("themes_report.R")
 
 
