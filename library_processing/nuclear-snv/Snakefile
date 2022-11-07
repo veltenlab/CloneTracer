@@ -385,7 +385,7 @@ rule make_bed:
   log:
     "data/{patient}/mutation_counts/logs/make_bed.log"
   conda:
-    "envs/nuclear_library.yml"
+    "envs/r_processing.yml"
   shell:
     "Rscript scripts/make_bed.R "
     "-i {input.genes} "
@@ -666,6 +666,6 @@ rule summary_report:
     log:
         "results/logs/{patient}/summary_report.log"
     conda:
-        "envs/nuclear_library.yml"
+        "envs/r_processing.yml"
     script:
         "scripts/summary_report.Rmd"
