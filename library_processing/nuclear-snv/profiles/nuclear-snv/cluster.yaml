@@ -9,7 +9,7 @@ __resources__:
 __default__:
   error: log_files/stderr.txt
   output: log_files/stdout.txt
-  queue: short-sl7
+  queue: short-sl7,long-sl7
   pe: smp 1
   walltime: 04:00:00
   virtual_free: 20G
@@ -19,23 +19,23 @@ star_align:
   error: log_files/stderr.txt
   output: log_files/stdout.txt
   queue: long-sl7
-  pe: smp 8
+  pe: smp 4
   walltime: 06:00:00
-  virtual_free: 80G
+  virtual_free: 40G
 
 split_bam:
   error: log_files/stderr.txt
   output: log_files/stdout.txt
   queue: long-sl7
-  pe: smp 8
+  pe: smp 4
   walltime: 10:00:00
-  virtual_free: 50G
+  virtual_free: 30G
 
 alignment_summary_stats:
   error: log_files/stderr.txt
   output: log_files/stdout.txt
   queue: long-sl7
-  pe: smp 2
+  pe: smp 1
   walltime: 10:00:00
   virtual_free: 40G
 
@@ -52,14 +52,14 @@ combine_bams:
   error: log_files/stderr.txt
   output: log_files/stdout.txt
   queue: short-sl7
-  pe: smp 8
+  pe: smp 4
   walltime: 04:00:00
-  virtual_free: 40G
+  virtual_free: 30G
 
 align_deduplicated:
   error: log_files/stderr.txt
   output: log_files/stdout.txt
-  queue: long-sl7
-  pe: smp 6
-  walltime: 06:00:00
-  virtual_free: 80G
+  queue: short-sl7
+  pe: smp 1
+  walltime: 04:00:00
+  virtual_free: 40G

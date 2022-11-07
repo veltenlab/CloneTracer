@@ -4,10 +4,6 @@
 patient_ids:
   [P1]
 
-# estimated number of cells per sample, for which dge data should be extracted.
-cell_numbers:
-  P1: 8000
-
 # cell and umi barcode base positions in barcode reads for each sample. the first element of the
 # array is the cell barcode range, while the second is the UMI barcode range.
 bc_structure:
@@ -61,8 +57,8 @@ count_table:
 # params read deduplicationn ------------------------------------------------------------
 read_deduplication:
   max_open_files: 10000
-  cores_split_files: 8
+  cores_split_files: 4
   umi_errors: 0
   min_reads_umi: 2
   star_threads: 1
-  cores_merge_bam: 8
+  cores_merge_bam: 4

@@ -20,24 +20,6 @@ editor_options:
 
 ```{r, include=FALSE}
 
-message("Checking if required packages are installed")
-for (i in c("optparse","BiocManager", "GenomicRanges", "tidyverse", "knitr", "patchwork",
-            "vcfR", "RColorBrewer", "viridis", "DT", "SummarizedExperiment", "here", "plotly")){
-  
-  if(!requireNamespace(i, quietly = TRUE)){
-  
-    
-    if(i %in% c("optparse", "BiocManager", "tidyverse", "here", "plotly", "RColorBrewer", "viridis", "patchwork",
-                "DT", "vcfR", "knitr")){
-      
-      install.packages(i, repos="https://ftp.fau.de/cran/")
-      
-    }else{BiocManager::install(i)}
-    
-  }
-  
-}
-
 # set global chunk settings
 knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(message = FALSE)
@@ -52,8 +34,6 @@ library(RColorBrewer)
 library(viridis)
 library(DT)
 library(SummarizedExperiment)
-library(here)
-library(plotly)
 snakemake@source("themes_report.R")
 
 

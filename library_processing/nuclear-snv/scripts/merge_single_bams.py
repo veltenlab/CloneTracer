@@ -158,6 +158,6 @@ if not keep_temp:
 
     temp_dir = out_dir + "/temp_bams/"
 
-    rm = "rm -r " + temp_dir + "sorted " + temp_dir + "renamed " + temp_dir + "consensus"
+    #rm = "rm -r " + temp_dir + "sorted " + temp_dir + "renamed " + temp_dir + "consensus"
 
     os.system(rm)

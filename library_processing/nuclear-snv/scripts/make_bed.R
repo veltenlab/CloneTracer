@@ -2,24 +2,6 @@
 
 # make BED file from list of amplified genes in mutation library
 
-# check if packages are installed
-message("Checking if required packages are installed")
-for (i in c("optparse","BiocManager", "tidyverse", "rtracklayer", "Rsamtools")){
-  
-  if(!requireNamespace(i, quietly = TRUE)){
-    
-    
-    if(i %in% c("optparse", "BiocManager", "tidyverse")){
-      
-      install.packages(i, repos="https://ftp.fau.de/cran/")
-      
-    }else{BiocManager::install(i)}
-    
-  }
-  
-}
-
-
 # parse command line arguments ---------------------------------------------------------------------
 
 library("optparse")
