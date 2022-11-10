@@ -10,7 +10,7 @@ __default__:
   error: log_files/stderr.txt
   output: log_files/stdout.txt
   queue: short-sl7
-  pe: smp 2
+  pe: smp 1
   walltime: 04:00:00
   virtual_free: 40G
 
@@ -19,15 +19,15 @@ star_align:
   error: log_files/stderr.txt
   output: log_files/stdout.txt
   queue: long-sl7
-  pe: smp 8
+  pe: smp 4
   walltime: 10:00:00
-  virtual_free: 90G
+  virtual_free: 40G
 
 reformat_cellbarcode:
   error: log_files/stderr.txt
   output: log_files/stdout.txt
   queue: long-sl7
-  pe: smp 4
+  pe: smp 1
   walltime: 20:00:00
   virtual_free: 50G
 
@@ -35,9 +35,9 @@ split_bam:
   error: log_files/stderr.txt
   output: log_files/stdout.txt
   queue: long-sl7
-  pe: smp 8
+  pe: smp 4
   walltime: 20:00:00
-  virtual_free: 50G
+  virtual_free: 40G
 
 # resources to process single-cell BAM files -------------------------------------------
 consensus_read:
@@ -52,7 +52,7 @@ combine_bams:
   error: log_files/stderr.txt
   output: log_files/stdout.txt
   queue: short-sl7
-  pe: smp 8
+  pe: smp 4
   walltime: 04:00:00
   virtual_free: 40G
 
@@ -60,17 +60,17 @@ align_deduplicated:
   error: log_files/stderr.txt
   output: log_files/stdout.txt
   queue: long-sl7
-  pe: smp 10
+  pe: smp 4
   walltime: 12:00:00
-  virtual_free: 80G
+  virtual_free: 40G
 
 split_count_bams:
   error: log_files/stderr.txt
   output: log_files/stdout.txt
   queue: long-sl7
-  pe: smp 8
+  pe: smp 4
   walltime: 10:00:00
-  virtual_free: 50G
+  virtual_free: 30G
 
 count_reads:
   error: log_files/stderr.txt
@@ -84,7 +84,7 @@ make_count_table:
   error: log_files/stderr.txt
   output: log_files/stdout.txt
   queue: long-sl7
-  pe: smp 10
+  pe: smp 4
   walltime: 20:00:00
   virtual_free: 60G
 
@@ -92,6 +92,6 @@ summary_report:
   error: log_files/stderr.txt
   output: log_files/stdout.txt
   queue: short-sl7
-  pe: smp 2
+  pe: smp 1
   walltime: 04:00:00
-  virtual_free: 60G
+  virtual_free: 50G

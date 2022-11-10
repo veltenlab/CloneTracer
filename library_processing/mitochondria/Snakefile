@@ -637,7 +637,7 @@ rule make_count_table:
     log:
         "data/{patient}/mito_counts/logs/make_count_table.log"
     conda:
-        "envs/mitochondrial_library.yml"
+        "envs/r_processing.yml"
     shell:
         "Rscript scripts/pickle_to_RDS.R "
         "-i {params.in_dir} "
@@ -678,6 +678,6 @@ rule summary_report:
     log:
         "results/logs/{patient}/summary_report.log"
     conda:
-        "envs/mitochondrial_library.yml"
+        "envs/r_processing.yml"
     script:
         "scripts/summary_report.Rmd"
