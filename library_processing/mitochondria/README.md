@@ -15,8 +15,8 @@ We provide a conda environment with all the required package dependencies. It ca
 ```
 git clone https://github.com/veltenlab/CloneTracer
 cd CloneTracer/library_processing/mitochondria
-conda env create -f envs/CloneTracer.yml
-conda activate clonetracer
+conda env create -f envs/optimized10x.yml
+conda activate optimized10x
 ```
 This conda environment also contains all packages to process nuclear libraries as described in [processing nuclear libraries](../nuclear-snv) section.
 
