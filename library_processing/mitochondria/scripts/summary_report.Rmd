@@ -19,24 +19,6 @@ editor_options:
 
 ```{r, include=FALSE}
 
-message("Checking if required packages are installed")
-for (i in c("optparse","BiocManager", "GenomicRanges", "tidyverse", "knitr", "patchwork", "devtools",
-            "vcfR", "RColorBrewer", "viridis", "DT", "SummarizedExperiment")){
-  
-  if(!requireNamespace(i, quietly = TRUE)){
-  
-    
-    if(i %in% c("optparse", "BiocManager", "tidyverse", "RColorBrewer", "viridis",
-                "DT", "vcfR", "knitr", "patchwork", "devtools")){
-      
-      install.packages(i, repos="https://ftp.fau.de/cran/")
-      
-    }else{BiocManager::install(i)}
-    
-  }
-  
-}
-
 # set global chunk settings
 knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(message = FALSE)
@@ -53,7 +35,7 @@ library(devtools)
 library(DT)
 library(SummarizedExperiment)
 snakemake@source("themes_mito_library.R")
-snakemake@source("functions_variant_calling.R")
+#snakemake@source("functions_variant_calling.R")
 
 
 # get the directory where Snakefile is stored

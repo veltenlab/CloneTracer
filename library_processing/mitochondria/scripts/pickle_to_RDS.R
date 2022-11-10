@@ -2,10 +2,6 @@
 
 # script to conver the pickle count object to list of single-cell matrixes for variant calling as well as making a SummarisedExperiment object
 
-# set the library folder
-.libPaths("/nfs/users2/lvelten/sbeneyto/.conda/envs/exome/lib/R/library")
-
-
 # parse command line arguments ---------------------------------------------------------------------
 
 library(optparse)
