@@ -203,25 +203,16 @@ counts = {}
 # get nucleotide count tables for each mutated site of interest
 for i in mutations.index.values:
 
-  # if we want count mutations in the mitochondria the contige notation is different
-  if mutations.iloc[i,1] == "MT" or mutations.iloc[i,1] == "chrM":
-      contig = mutations.iloc[i,1]
+  # get contig name
+  contig = mutations.iloc[i,1]
 
-  else:
-      # get contig name (remove 'chr' because the BAM file is aligned to the GRCh38 genome)
-      #contig = re.search("\d+", mutations.iloc[i,1]).group()
-      contig = re.sub("chr", "", mutations.iloc[i,1])
   # get position. -1 need to be added because coordinates in pysam are 0-indexed
   start = mutations.iloc[i,2]-1
-
-
   # collect the mutational site contig and position
   site = contig + ":" + str(mutations.iloc[i,2])
 
-
   # create dictionaries to store the mutational status, total raw reads and missmatch ratio of amplicons
   status, coverage, miss_reads = {}, {}, {}
-
 
   # get reference and alt alleles
   ref = mutations.iloc[i,3]
