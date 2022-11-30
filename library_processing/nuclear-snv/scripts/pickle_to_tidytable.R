@@ -2,20 +2,6 @@
 
 # convert count table from pickle python object to dataframe saved as RDS
 
-
-message("Checking if required packages are installed")
-for (i in c("optparse","tidyverse", "reticulate")){
-  
-  if(!requireNamespace(i, quietly = TRUE)){
-    
-      
-    install.packages(i, repos="https://ftp.fau.de/cran/")
-      
-  }
-  
-}
-
-
 # parse command line arguments ---------------------------------------------------------------------
 
 library("optparse")
@@ -194,8 +180,3 @@ count_table <- count_table_init %>% bind_rows(dropout_table) %>%
 
 # save final table as RDS
 saveRDS(count_table, file = opt$output)
-
-
-
-
-

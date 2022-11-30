@@ -643,7 +643,7 @@ rule table_to_rds:
     log:
         "data/{patient}/mutation_counts/logs/table_to_rds.log"
     conda:
-        "envs/nuclear_library.yml"
+        "envs/r_processing.yml"
     shell:
         "Rscript scripts/pickle_to_tidytable.R "
         "-i {input.pickle} "
