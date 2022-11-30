@@ -1,4 +1,4 @@
-name: mGATK
+name: nucl_library
 channels:
   - conda-forge
   - bioconda
@@ -302,5 +302,4 @@ dependencies:
     - vireosnp==0.5.5
     - wrapt==1.12.1
     - zipp==3.4.0
-prefix: /users/lvelten/sbeneyto/.conda/envs/mGATK
-
+prefix: /users/lvelten/sbeneyto/.conda/envs/nucl_library

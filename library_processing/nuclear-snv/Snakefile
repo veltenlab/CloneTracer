@@ -2,7 +2,7 @@
 
 ### input, output and shell paths are all relative to the project directory ###
 
-configfile: "config.yml"
+configfile: "config_test.yml"
 
 import glob
 

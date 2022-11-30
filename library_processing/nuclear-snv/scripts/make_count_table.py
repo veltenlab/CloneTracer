@@ -204,7 +204,15 @@ counts = {}
 for i in mutations.index.values:
 
   # get contig name
-  contig = mutations.iloc[i,1]
+  # make sure contig names are the same in variants file and bam contigs
+  stats = bam.get_index_statistics()
+  bam_contigs = [stats[j][0] for j in range(len(stats))]
+    
+  if "chr1" in bam_contigs:
+    contig = mutations.iloc[i,1]
+    
+  else:
+    contig = re.sub("chr", "", mutations.iloc[i,1])
 
   # get position. -1 need to be added because coordinates in pysam are 0-indexed
   start = mutations.iloc[i,2]-1
