@@ -16,8 +16,8 @@ if __name__ == "__main__":
   parser.add_argument("--cell_tag", "-t", help="Tag containing cell barcode (default: CB)", type=str, default ="CB")
   parser.add_argument("--barcodes", "-b", help="File with valid cell barcodes one per line", type=str)
   parser.add_argument("--present_barcodes", "-p", help="File with cell barcodes present in the BAM file (output from rule get_barcodes)", type=str)
-  parser.add_argument("--cores", "-c", help="Number of cores. If > 10k cells are presented 2 are required (otherwise there would be too many open files)", type=int)
-  parser.add_argument("--max_files", "-m", help="Maximum number of opened files allowed by the OS", type=int)
+  parser.add_argument("--max_files", "-m", help="Maximum number of opened files allowed by the operative system", type=int)
+  parser.add_argument("--cores", "-c", help="Number of cores. More than one is recommended particularly if the number of cells is much larger than the number of maximum opened files the operative system allows", type=int)
   args = parser.parse_args()
 
 # assign them to variables
@@ -27,7 +27,12 @@ cell_tag = args.cell_tag
 bcfile = args.barcodes
 barcodes = args.present_barcodes
 cores = args.cores
-max_files = args.max_files-cores-2
+
+if args.max_files-cores-2 <= 1:
+    max_files = args.max_files
+
+else:
+    max_files = args.max_files-cores-2
 
 # function to write reads
 def write_bam(barcodes, outfiles, bamfile):
@@ -92,46 +97,107 @@ bam_file_paths = [output_directory + "/" + bc1 + ".bam" for bc1 in final_barcode
 # make dicitonaries with barcodes and output files per process
 barcodes_list, outfiles_list = [], []
 
-# if the total barcodes < max open files i just distribute the barcodes in the cores
-if len(final_barcodes) < max_files:
 
-    files_core = round(len(final_barcodes)/cores)
+if cores > 1:
+    # if the total barcodes < max open files i just distribute the barcodes in the cores
+    if len(final_barcodes) < max_files:
 
-    # add files to dictionary
-    for i in range(cores):
+        files_core = round(len(final_barcodes)/cores)
 
-        # the first core is different
-        if i == 0:
+        # add files to dictionary
+        for i in range(cores):
 
-            barcodes_list.append(final_barcodes[0:files_core*(i+1)])
+            # the first core is different
+            if i == 0:
 
-            outfiles_list.append(bam_file_paths[0:files_core*(i+1)])
+                barcodes_list.append(final_barcodes[0:files_core*(i+1)])
 
-        elif not i == cores:
+                outfiles_list.append(bam_file_paths[0:files_core*(i+1)])
 
-            barcodes_list.append(final_barcodes[files_core*i:files_core*(i+1)])
+            elif not i == cores:
 
-            outfiles_list.append(bam_file_paths[files_core*i:files_core*(i+1)])
+                barcodes_list.append(final_barcodes[files_core*i:files_core*(i+1)])
 
-        else:
+                outfiles_list.append(bam_file_paths[files_core*i:files_core*(i+1)])
 
-            barcodes_list.append(final_barcodes[files_core*i:])
+            else:
 
-            outfiles_list.append(bam_file_paths[files_core*i:])
-    # run parallel process
-    with multiprocessing.Pool(cores) as pool:
-        pool.starmap(write_bam, zip(barcodes_list, outfiles_list, [bam_file] * cores))
+                barcodes_list.append(final_barcodes[files_core*i:])
 
-# if there are more barcodes than max open files more iterations need to be done
+                outfiles_list.append(bam_file_paths[files_core*i:])
+        # run parallel process
+        with multiprocessing.Pool(cores) as pool:
+            pool.starmap(write_bam, zip(barcodes_list, outfiles_list, [bam_file] * cores))
+
+    # if there are more barcodes than max open files more iterations need to be done
+    else:
+        # compute how many single cell files/core should be processed.
+        files_core = math.floor(max_files/cores)
+
+        # get how many files/iteration will be open
+        files_iteration = files_core*cores
+
+        # get how many iterations should be computed
+        iterations = math.ceil(len(final_barcodes)/files_core)
+
+        # add files to dictionary
+        for i in range(iterations):
+
+            # the last core is different
+            if i == 0:
+
+                barcodes_list.append(final_barcodes[0:files_core*(i+1)])
+
+                outfiles_list.append(bam_file_paths[0:files_core*(i+1)])
+
+            elif not i == cores:
+
+                barcodes_list.append(final_barcodes[files_core*i:files_core*(i+1)])
+
+                outfiles_list.append(bam_file_paths[files_core*i:files_core*(i+1)])
+
+            else:
+
+                barcodes_list.append(final_barcodes[files_core*i:])
+
+                outfiles_list.append(bam_file_paths[files_core*i:])
+
+        # compute how many blocks of n = cores iterations have to be done
+        blocks = math.ceil(iterations/cores)
+
+        for i in range(blocks):
+
+            if i == 0:
+
+                # run parallel process
+                with multiprocessing.Pool(cores) as pool:
+                    pool.starmap(write_bam, zip(barcodes_list[0:cores],
+                                                outfiles_list[0:cores],
+                                                [bam_file] * cores))
+            elif i != blocks-1:
+
+                # run parallel process
+                with multiprocessing.Pool(cores) as pool:
+                    pool.starmap(write_bam, zip(barcodes_list[cores*i:cores*(i+1)],
+                                                outfiles_list[cores*i:cores*(i+1)],
+                                                [bam_file] * cores))
+
+            else:
+
+                # final iterations
+                final_iter = iterations-((blocks-1)*cores)
+
+                # run parallel process
+                with multiprocessing.Pool(cores) as pool:
+                    pool.starmap(write_bam, zip(barcodes_list[cores*i:],
+                                                outfiles_list[cores*i:],
+                                                [bam_file] * final_iter))
+
+# in case only one core is provided
 else:
-    # compute how many single cell files/core should be processed.
-    files_core = round(max_files/cores)
 
-    # get how many files/iteration will be open
-    files_iteration = files_core*cores
-
-    # get how many iterations should be computed
-    iterations = math.ceil(len(final_barcodes)/files_core)
+    # compute number of iterations needed
+    iterations = math.ceil(len(final_barcodes)/max_files)
 
     # add files to dictionary
     for i in range(iterations):
@@ -139,52 +205,21 @@ else:
         # the last core is different
         if i == 0:
 
-            barcodes_list.append(final_barcodes[0:files_core*(i+1)])
+            write_bam(final_barcodes[0:max_files*(i+1)],
+                      bam_file_paths[0:max_files*(i+1)],
+                      bam_file)
 
-            outfiles_list.append(bam_file_paths[0:files_core*(i+1)])
+        elif not i == iterations:
 
-        elif not i == cores:
-
-            barcodes_list.append(final_barcodes[files_core*i:files_core*(i+1)])
-
-            outfiles_list.append(bam_file_paths[files_core*i:files_core*(i+1)])
-
-        else:
-
-            barcodes_list.append(final_barcodes[files_core*i:])
-
-            outfiles_list.append(bam_file_paths[files_core*i:])
-
-    # compute how many blocks of n = cores iterations have to be done
-    blocks = math.ceil(iterations/cores)
-
-    for i in range(blocks):
-
-        if i == 0:
-
-            # run parallel process
-            with multiprocessing.Pool(cores) as pool:
-                pool.starmap(write_bam, zip(barcodes_list[0:cores],
-                                            outfiles_list[0:cores],
-                                            [bam_file] * cores))
-        elif i != blocks-1:
-
-            # run parallel process
-            with multiprocessing.Pool(cores) as pool:
-                pool.starmap(write_bam, zip(barcodes_list[cores*i:cores*(i+1)],
-                                            outfiles_list[cores*i:cores*(i+1)],
-                                            [bam_file] * cores))
+            write_bam(final_barcodes[max_files*i:max_files*(i+1)],
+                      bam_file_paths[max_files*i:max_files*(i+1)],
+                      bam_file)
 
         else:
 
-            # final iterations
-            final_iter = iterations-((blocks-1)*cores)
-
-            # run parallel process
-            with multiprocessing.Pool(cores) as pool:
-                pool.starmap(write_bam, zip(barcodes_list[cores*i:],
-                                            outfiles_list[cores*i:],
-                                            [bam_file] * final_iter))
+            write_bam(final_barcodes[max_files*i:],
+                      bam_file_paths[max_files*i:],
+                      bam_file)
 
 
 print("BAM split completed!")
