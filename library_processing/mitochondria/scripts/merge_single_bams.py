@@ -181,7 +181,7 @@ else:
         # first iteration is a bit different
         if i == 0:
 
-            merge_bams(final_bams[0:1], temp_bams[i])
+            merge_bams(final_bams[0:2], temp_bams[i])
 
         else:
 
