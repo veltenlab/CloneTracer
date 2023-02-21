@@ -36,6 +36,11 @@ def process_snv(bam, contig, start, miss_thres, ref, alt):
       # create dictionaries to store the mutational status, total raw reads and missmatch ratio of amplicons
       status, coverage, miss_reads = {}, {}, {}
 
+      # check if there are any reads aligigning the position (if it's 0 it gives problems)
+      if len(list(bam.pileup(contig, start, start+1, max_depth = 1000000000, truncate = True))) == 0:
+
+          return status, coverage, miss_reads
+
       # loop over reads aligning to the position of interest.
       for position in bam.pileup(contig, start, start+1, max_depth = 1000000, truncate = True):
 
@@ -46,9 +51,11 @@ def process_snv(bam, contig, start, miss_thres, ref, alt):
         # iterate through the reads aligned in the position and count nucleotides
         for read in position.pileups:
 
-
             # filter out indels and splicing sites
             if read.is_del or read.is_refskip:
+                continue
+
+            if not isinstance(read.query_position, int):
                 continue
 
             # get total number of raw reads at the position of interest
@@ -61,10 +68,8 @@ def process_snv(bam, contig, start, miss_thres, ref, alt):
             # get number of reads which do not agree with consensus and compute mismatch ratio
             missmatch_reads = read.alignment.get_tag("ce")[read.query_position]
 
-
             # missmatch ratio
             missmatch_ratio = missmatch_reads/raw_reads
-
 
             # if missmatch > 0.2 rule out read of interest
             if missmatch_ratio > miss_thres:
@@ -117,11 +122,15 @@ def process_snv(bam, contig, start, miss_thres, ref, alt):
 def process_indel(bam, contig, start, threshold, ref):
 
     # create dictionaries to store the mutational status, total raw reads and missmatch ratio of amplicons
-      status, coverage, miss_reads = {}, {}, {}
+    status, coverage, miss_reads = {}, {}, {}
+
+    # check if there are any reads aligning the position (if it's 0 it gives problems)
+    if len(list(bam.pileup(contig, start, start+1, max_depth = 1000000000, truncate = True))) == 0:
+
+        return status, coverage, miss_reads
 
     # loop over reads aligning to the position of interest.
-      for position in bam.pileup(contig, start, start+1, max_depth = 100000000, truncate = True):
-
+    for position in bam.pileup(contig, start, start+1, max_depth = 100000000, truncate = True):
 
         # we only want to count nucleotides in the mutated site
         if not position.reference_pos == start:
@@ -130,9 +139,11 @@ def process_indel(bam, contig, start, threshold, ref):
         # iterate through the reads aligned in the position and count nucleotides
         for read in position.pileups:
 
-
             # filter out splicing sites
             if read.is_refskip:
+                continue
+
+            if not isinstance(read.query_position, int):
                 continue
 
             # get total number of raw reads at the position of interest
@@ -142,10 +153,8 @@ def process_indel(bam, contig, start, threshold, ref):
             if raw_reads == 0:
               continue
 
-
             # get number of reads which do not agree with consensus and compute mismatch ratio
             missmatch_reads = read.alignment.get_tag("ce")[read.query_position]
-
 
             # missmatch ratio
             missmatch_ratio = missmatch_reads/raw_reads
@@ -158,16 +167,13 @@ def process_indel(bam, contig, start, threshold, ref):
             # get read UMI (it is encoded in the read name. There might be up to 4 entries per UMI, one per inner primer)
             umi = re.sub('^.+:' ,"", read.alignment.query_name)
 
-
             # get cell barcode (it is stored in the read name of the BAM file)
             cell_barcode = re.search(".+_(.+)_.+", read.alignment.query_name).group(1)
-
 
             if not cell_barcode in status:
                 status[cell_barcode] = {}
                 coverage[cell_barcode] = {}
                 miss_reads[cell_barcode] = {}
-
 
             # if is the first amplicon from the UMI add it to the dictionaries
             if not umi in status[cell_barcode]:
@@ -207,10 +213,10 @@ for i in mutations.index.values:
   # make sure contig names are the same in variants file and bam contigs
   stats = bam.get_index_statistics()
   bam_contigs = [stats[j][0] for j in range(len(stats))]
-    
+
   if "chr1" in bam_contigs:
     contig = mutations.iloc[i,1]
-    
+
   else:
     contig = re.sub("chr", "", mutations.iloc[i,1])
 
