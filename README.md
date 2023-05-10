@@ -8,7 +8,7 @@ CloneTracer is a methdology to add clonal resolution to scRNAseq datasets using 
 
 For details of the method see our manuscript:
 
-[Beneyto-Calabuig, Merbach et al,. Clonally resolved single-cell multi-omics identifies routes of cellular differentiation in acute myeloid leukemia, Cell Stem Cell 2023](https://www.cell.com/cell-stem-cell/fulltext/S1934-5909(23)00119-4)
+[Beneyto-Calabuig, Merbach et al,. Clonally resolved single-cell multi-omics identifies routes of cellular differentiation in acute myeloid leukemia, Cell Stem Cell 2023](external.ink?to=https://www.cell.com/cell-stem-cell/fulltext/S1934-5909(23)00119-4)
   
 To analyse the generated data, we have developed CloneTracer, a Bayesian framework which infers the mutational hierarchy in a particular sample and probabilistically assigns single cells to clones. All required scripts and detailed explanation on how to implement the model can be found in:
 
