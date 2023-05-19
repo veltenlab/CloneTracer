@@ -56,7 +56,7 @@ The script has the following command-line arguments:
 The following command would run the pipeline for P1 of the manuscript:
 
 ```
-Rscript design_primers.R -i example_P1/input_variants.csv -b example_P1/genomic_files/subsetted.bam -u path/to/cellranger/outs -g path/to/gtf_file -n P1 -r 120 -d example_P1 -t TRUE -c 8 -m example_P1/muts.txt
+Rscript design_primers.R -i example_P1/input_variants.csv -b example_P1/genomic_files/subsetted.bam -u path/to/cellranger/outs -g path/to/gtf_file -n P1 -r 120 -d example_P1 -c 8 -m example_P1/muts.txt
 ```
 
 # Output
