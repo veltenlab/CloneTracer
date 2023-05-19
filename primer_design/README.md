@@ -4,7 +4,7 @@ The R script [design_primers.R](design_primers) is used to design primers for th
 
 # Dependencies 
 
-In order to run the script, samtools is required in the environment as well as the following R packages: tidyverse, GenomicRanges, GenomicFeatures, Seurat, BiocParallel, rtracklayer, BSgenome, TAPseq, ballgown, purrr, TxDb.Hsapiens.UCSC.hg38.knownGene, mygene, BSgenome.Hsapiens.UCSC.hg38.
+In order to run the script, samtools and primer3 are required in the environment as well as the following R packages: tidyverse, GenomicRanges, GenomicFeatures, Seurat, BiocParallel, rtracklayer, BSgenome, TAPseq, ballgown, purrr, TxDb.Hsapiens.UCSC.hg38.knownGene, mygene, BSgenome.Hsapiens.UCSC.hg38.
 
 We provide a conda environment with all dependencies installed:
 
