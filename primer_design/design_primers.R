@@ -4,26 +4,6 @@
 
 # parse command line arguments ---------------------------------------------------------------------
 
-# check if required packages are installed 
-message("Checking if required packages are installed")
-for (i in c("optparse","BiocManager", "GenomicRanges", "GenomicFeatures", "Seurat", 
-            "BiocParallel", "rtracklayer", "BSgenome", "readxl",
-           "TAPseq", "ballgown", "purrr", "TxDb.Hsapiens.UCSC.hg38.knownGene", "BSgenome.Hsapiens.UCSC.hg38",
-           "BSgenome", "mygene", "tidyverse")){
-  
-  if(!requireNamespace(i, quietly = TRUE)){
-  
-    
-    if(i %in% c("optparse", "BiocManager", "tidyverse", "purrr", "Seurat", "readxl")){
-      
-      install.packages(i, repos="https://ftp.fau.de/cran/")
-      
-    }else{BiocManager::install(i)}
-    
-  }
-  
-}
-
 library(optparse)
 library(tidyverse)
 library(GenomicRanges)
@@ -735,7 +715,7 @@ annotated_variants <- annotated_variants %>% left_join(flag_table) %>%
                                  reason = case_when(primers == T ~ "primers_designed",
                                                     primers == F & counts_cell < 0.15 ~ "low_expression",
                                                     primers == F & distance_3_end > 1500 ~ "far_from_gene_end")) %>% 
-                          arrange(desc(primers, distance_3_end))
+                          dplyr::arrange(distance_3_end)
                           
 # make directory to store primer file
 primer_dir <- paste0(opt$out_directory, "/primers")
