@@ -8,7 +8,7 @@ output:
   html_document:
     number_sections: yes
     toc: yes
-    code_folding: show
+    code_folding: hide
     toc_depth: 4
     toc_float:
       collapsed: false
@@ -27,6 +27,9 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(message = FALSE)
 knitr::opts_chunk$set(warning = FALSE)
 
+# here one should set the working directory to the vignettes folder of the repository
+#setwd("/path/to/CloneTracer/clonal_inference/vignettes")
+
 library(tidyverse)
 library(Seurat)
 library(ComplexHeatmap)
@@ -44,7 +47,6 @@ source("funct_clonal_analysis.R")
 pat <- "A.6"
 
 ```
-
 
 # Clonal analysis
 

@@ -102,7 +102,7 @@ tidy_pickle <- function(pickle, clone_names, tree = "0"){
     mutate(clone = factor(clone_names[clone_n], levels = clone_names),
            leukemia_prob = 1-pickle$clonal_prob[[tree]][,1], 
            status = ifelse(clone_n != 1, "cancer", "healthy")) %>% 
-    arrange(clone_n)
+    dplyr::arrange(clone_n)
   
   return(data)
   
@@ -373,8 +373,8 @@ export_trees <- function(grph_series, outdir = "plots/", h = 600, w = 300){
 # function to make line plot showing the ELBO
 print_elbo <- function(pickle, trees = "all", first_iter = 100, exclude = "", max_elbo = 1e6){
   
-  # select all trees
-  if(trees == "all"){trees = as.character(1:length(pickle$potential_trees)-1)}
+  # by default all trees are selected
+  if(trees[1] == "all"){trees = as.character(1:length(pickle$potential_trees)-1)}
   
   # make dataframe with ELBO values over iterations (by default the 1st 100 iterations are not shown)
   elbo_data <- do.call("cbind",pickle$ELBO) %>% as.data.frame() %>% 
@@ -447,8 +447,8 @@ make_heatmap <- function(pickle, seurat, pat, tree, cols = c("#3b4ba7", rev(Arch
       # order cells based on clonal probabilities
       table <- table %>% 
                 group_by(clone) %>% 
-                arrange(desc(clonal_probability), .by_group = T)
-      
+                dplyr::arrange(dplyr::desc(clonal_probability), .by_group = T)
+
       # make barplot of clonal probabilities
       barplot <- anno_barplot(probs[table$cell_barcode,],
                               gp = gpar(fill = clone_cols_discr, col = NA), 
@@ -524,7 +524,7 @@ make_heatmap <- function(pickle, seurat, pat, tree, cols = c("#3b4ba7", rev(Arch
       
       # order cells based on cancer probability
       table <- table %>% 
-                arrange(leukemia_prob)
+                dplyr::arrange(leukemia_prob)
       
       # make heatmap with cancer probability
       probs_mat <- table$leukemia_prob %>% as.matrix() %>% t()
@@ -615,7 +615,7 @@ make_heatmap <- function(pickle, seurat, pat, tree, cols = c("#3b4ba7", rev(Arch
       # order cells based on clonal probabilities
       table <- table %>% 
         group_by(clone) %>% 
-        arrange(desc(clonal_probability), .by_group = T)
+        dplyr::arrange(desc(clonal_probability), .by_group = T)
       
       # make barplot of clonal probabilities
       barplot <- anno_barplot(probs[table$cell_barcode,],
@@ -722,7 +722,7 @@ make_heatmap <- function(pickle, seurat, pat, tree, cols = c("#3b4ba7", rev(Arch
       # order cells based on clonal probabilities
       table <- table %>% 
         group_by(clone) %>% 
-        arrange(desc(clonal_probability), .by_group = T)
+        dplyr::arrange(desc(clonal_probability), .by_group = T)
       
       # make barplot of clonal probabilities
       barplot <- anno_barplot(probs[table$cell_barcode,],
@@ -796,7 +796,7 @@ make_heatmap <- function(pickle, seurat, pat, tree, cols = c("#3b4ba7", rev(Arch
       
       # order cells based on cancer probability
       table <- table %>% 
-        arrange(leukemia_prob)
+        dplyr::arrange(leukemia_prob)
       
       # make heatmap with cancer probability
       probs_mat <- table$leukemia_prob %>% as.matrix() %>% t()
@@ -879,7 +879,7 @@ make_heatmap <- function(pickle, seurat, pat, tree, cols = c("#3b4ba7", rev(Arch
       # order cells based on clonal probabilities
       table <- table %>% 
         group_by(clone) %>% 
-        arrange(desc(clonal_probability), .by_group = T)
+        dplyr::arrange(desc(clonal_probability), .by_group = T)
       
       # make barplot of clonal probabilities
       barplot <- anno_barplot(probs[table$cell_barcode,],
@@ -1081,7 +1081,7 @@ umap_clones <- function(pickle, seurat, tree, name, post_thr = 0.8, reduction = 
                     mutate(clone = ifelse(clonal_probability > post_thr, as.character(clone), "Indeterminate")) %>% 
                     left_join(coords) %>% 
                     filter(cell_barcode %in% intersect(colnames(seurat), pickle$cell_barcode)) %>% 
-                    arrange(cell_barcode)
+                    dplyr::arrange(cell_barcode)
   
   # set colours to clones following the inferred clonal hierarchy
   cols <- setNames(c(c("#3b4ba7", rev(ArchRPalettes$calm))[1:length(clones_order)], ind_color),
@@ -1141,7 +1141,7 @@ umap_leuk <- function(pickle, seurat, tree, reduction = "umap"){
                         tree = tree) %>% 
             left_join(coords) %>% 
             filter(cell_barcode %in% intersect(colnames(seurat), pickle$cell_barcode)) %>% 
-            arrange(cell_barcode)
+            dplyr::arrange(cell_barcode)
               
     
     # UMAP with reference as background
